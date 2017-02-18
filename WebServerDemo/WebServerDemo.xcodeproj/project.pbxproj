@@ -121,8 +121,8 @@
 			children = (
 				3590CEC31E5827BB0005DA62 /* NIDebuggingTools.h */,
 				3590CEC41E5827BB0005DA62 /* NIDebuggingTools.m */,
-				27CB889B1C5A06AE008BEF68 /* SampleVideo_640x360_1mb.mp4 */,
 				27CB886A1C59C73F008BEF68 /* GCDWebServer */,
+				27CB889B1C5A06AE008BEF68 /* SampleVideo_640x360_1mb.mp4 */,
 				27CB88561C59C584008BEF68 /* AppDelegate.h */,
 				27CB88571C59C584008BEF68 /* AppDelegate.m */,
 				27CB88591C59C584008BEF68 /* ViewController.h */,

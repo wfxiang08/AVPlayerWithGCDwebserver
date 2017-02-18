@@ -30,7 +30,7 @@
 
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
 
-    NSString *realUrlStr = @"http://192.168.31.187:8000/01/hls-low/playlist.m3u8";
+    NSString *realUrlStr = @"http://192.168.31.187:8000/02/hls-low/playlist.m3u8";
     
     
     NSString *urlStr = [self.videoCacheTool getLocalURL:realUrlStr];

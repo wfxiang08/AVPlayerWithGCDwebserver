@@ -70,6 +70,8 @@
                withIntermediateDirectories:YES
                                 attributes:nil
                                      error:nil];
+    } else {
+        NIDPRINT(@"Create Video Cache Dir Exists: %@", videoDir);
     }
 }
 
@@ -90,6 +92,8 @@
 //       video_dir/seg002.ts
 //
 + (NSString *)getVideoCacheDirFromUrl:(NSString *)videoRealUrl {
+    NIDPRINT(@"Md5 URL: %@", videoRealUrl);
+
     NSString *retStr = [self getSandboxCacheDirectory];
     retStr = [retStr stringByAppendingPathComponent:@"SMVideoCache"];
     retStr = [retStr stringByAppendingPathComponent:[self md5HexDigest:videoRealUrl]];
@@ -105,22 +109,25 @@
                                  videoRealUrl:(NSString *)videoRealUrl
                                      filePart:(NSString *)filePart {
 
+    // NSString *videoDir = [self getVideoCacheDirFromUrl:videoRealUrl];
     [self ensureVideoCacheDirForUrl:videoRealUrl];
+    
+    // NIDASSERT([[NSFileManager defaultManager] fileExistsAtPath:videoDir]);
 
-    NSString *newFilePathString = [self getVideoFileCachePath:videoRealUrl filePart:filePart];
+    NSString *newFilePath = [self getVideoFileCachePath:videoRealUrl filePart:filePart];
     
-    NSURL *newFilePathUrl = [NSURL fileURLWithPath:newFilePathString];
     
-    NIDPRINT(@"Save Cache To File: %@", newFilePathUrl);
+    NIDPRINT(@"Save Cache To File: %@", newFilePath);
     
-    if ([[NSFileManager defaultManager] fileExistsAtPath: newFilePathString]) {
-        [[NSFileManager defaultManager] removeItemAtPath: newFilePathString error: nil];
+    if ([[NSFileManager defaultManager] fileExistsAtPath: newFilePath]) {
+        [[NSFileManager defaultManager] removeItemAtPath: newFilePath error: nil];
     }
     
-    BOOL ret = [data writeToURL:newFilePathUrl atomically:YES];
+    NSError* error;
+    BOOL ret = [data writeToFile:newFilePath options:NSDataWritingAtomic error:&error];
     
     if (!ret) {
-        NSLog(@"文件复制错误");
+        NSLog(@"文件复制错误, %@", error);
     }
     
     return ret;
