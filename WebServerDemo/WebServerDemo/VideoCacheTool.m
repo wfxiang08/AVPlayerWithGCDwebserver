@@ -95,13 +95,13 @@
                                 // 直接下载
                                 GCDWebServerStreamedResponse *responseStream =
                                     [GCDWebServerStreamedResponse responseWithContentType:contentType
-                                                                         asyncStreamBlock:^(GCDWebServerBodyReaderCompletionBlock completionBlock) {
+                                                                         asyncStreamBlock:^(GCDWebServerBodyReaderCompletionBlock completionBlockInner) {
                                     
                                                                              NIDPRINT(@"Target: %@", target);
-                                                                             NIDPRINT(@"FilePart: %@, VideoPart: %@", fileName, [self getVideoPath: target]);
+                                                                             NIDPRINT(@"FilePart: %@, VideoPart: %@", fileName, videoURL);
                                                                              
                                                                              NSData* data = nil;
-                                                                             NSString* cacheUrl = [VideoCacheManager getVideoFileCachePath:[self getVideoPath: target]
+                                                                             NSString* cacheUrl = [VideoCacheManager getVideoFileCachePath:videoURL
                                                                                                                                   filePart:fileName];
                                                                              if ([[NSFileManager defaultManager] fileExistsAtPath:cacheUrl]) {
                                                                                  data = [NSData dataWithContentsOfFile:cacheUrl];
@@ -112,32 +112,35 @@
                                                                                  NIDPRINT(@"VideoURL: %@", target);
                                                                                  
                                                                                  data = [NSData dataWithContentsOfURL:[NSURL URLWithString:target]];
+                                                                                 
                                                                                  if ([target hasSuffix:@".m3u8"]) {
                                                                                      // 如果是m3u8文件，则特殊处理
-                                                                                     NSString* str = [[NSString alloc] initWithData: data encoding:NSUTF8StringEncoding];
+                                                                                     NSString* m3u8FileData = [[NSString alloc] initWithData: data
+                                                                                                                                    encoding:NSUTF8StringEncoding];
 
-                                                                                     for (int i = 0; i < 73; i++) {
+                                                                                     for (int i = 0; i < 76; i++) {
                                                                                          NSString* pattern = [NSString stringWithFormat:@"seg%05d.ts", i];
                                                                                          NSString* targetUrl = [NSString stringWithFormat:@"http://192.168.31.187:8000/02/hls-low/%@", pattern];
                                                                                          
                                                                                          NSString* newUrl = [self getLocalURL:targetUrl];
-                                                                                         str = [str stringByReplacingOccurrencesOfString:pattern withString:newUrl];
+                                                                                         m3u8FileData = [m3u8FileData stringByReplacingOccurrencesOfString:pattern
+                                                                                                                                                withString:newUrl];
                                                                                      }
                                                                                      
-                                                                                     data = [str dataUsingEncoding:NSUTF8StringEncoding];
+                                                                                     data = [m3u8FileData dataUsingEncoding:NSUTF8StringEncoding];
                                                                                  }
                                                                                  
                                                                                  if (!(data != nil && data.length > 0)) {
-                                                                                     int i = 0;
+                                                                                     int k = 0;
                                                                                  }
                                                                                  [VideoCacheManager copyCacheFileToCacheDirectoryWithData:data
-                                                                                                                             videoRealUrl:[self getVideoPath: target]
-                                                                                                                                 filePart:target.lastPathComponent];
+                                                                                                                             videoRealUrl:videoURL
+                                                                                                                                 filePart:fileName];
 
                                                                              }
                                                                              
                                                                              // 数据处理完毕
-                                                                             completionBlock(data, nil);
+                                                                             completionBlockInner(data, nil);
                                                                          }];
                                 
                                  completionBlock(responseStream);
