@@ -9,6 +9,7 @@
 #import "ViewController.h"
 #import "VideoCacheTool.h"
 #import <AVFoundation/AVFoundation.h>
+#import "NIDebuggingTools.h"
 
 @interface ViewController ()
 
@@ -20,6 +21,8 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    
+    // 初始化WebServer
     self.videoCacheTool = [[VideoCacheTool alloc] init];
 }
 
@@ -30,6 +33,8 @@
     
     NSString *urlStr = [self.videoCacheTool getUrlStringWithRealUrlString:realUrlStr];
     
+    NIDPRINT(@"PlayURL: %@", urlStr);
+
     NSURL *url = [NSURL URLWithString:urlStr];
     
     AVAsset *asset = [AVAsset assetWithURL:url];
@@ -45,8 +50,6 @@
     [self.view.layer addSublayer:layer];
     
     [player play];
-    
-//    [NSTimer scheduledTimerWithTimeInterval:4.0 target:self selector:@selector(stopWebServer) userInfo:nil repeats:NO];
     
 }
 

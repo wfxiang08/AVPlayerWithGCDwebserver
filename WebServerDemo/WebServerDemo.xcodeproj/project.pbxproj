@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		276BF84E1C75A6AD00CE1FD2 /* VideoCacheTool.m in Sources */ = {isa = PBXBuildFile; fileRef = 276BF84D1C75A6AD00CE1FD2 /* VideoCacheTool.m */; };
-		276BF8511C75B3FD00CE1FD2 /* VideoCacheFileManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 276BF8501C75B3FD00CE1FD2 /* VideoCacheFileManager.m */; };
+		276BF8511C75B3FD00CE1FD2 /* VideoCacheManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 276BF8501C75B3FD00CE1FD2 /* VideoCacheManager.m */; };
 		27CB88551C59C584008BEF68 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 27CB88541C59C584008BEF68 /* main.m */; };
 		27CB88581C59C584008BEF68 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 27CB88571C59C584008BEF68 /* AppDelegate.m */; };
 		27CB885B1C59C584008BEF68 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 27CB885A1C59C584008BEF68 /* ViewController.m */; };
@@ -30,13 +30,14 @@
 		27CB88961C59C73F008BEF68 /* GCDWebServerStreamedResponse.m in Sources */ = {isa = PBXBuildFile; fileRef = 27CB88891C59C73F008BEF68 /* GCDWebServerStreamedResponse.m */; };
 		27CB88981C59C7E0008BEF68 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 27CB88971C59C7E0008BEF68 /* libz.tbd */; };
 		27CB889C1C5A06AE008BEF68 /* SampleVideo_640x360_1mb.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 27CB889B1C5A06AE008BEF68 /* SampleVideo_640x360_1mb.mp4 */; };
+		3590CEC51E5827BB0005DA62 /* NIDebuggingTools.m in Sources */ = {isa = PBXBuildFile; fileRef = 3590CEC41E5827BB0005DA62 /* NIDebuggingTools.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		276BF84C1C75A6AD00CE1FD2 /* VideoCacheTool.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VideoCacheTool.h; sourceTree = "<group>"; };
 		276BF84D1C75A6AD00CE1FD2 /* VideoCacheTool.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VideoCacheTool.m; sourceTree = "<group>"; };
-		276BF84F1C75B3FD00CE1FD2 /* VideoCacheFileManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VideoCacheFileManager.h; sourceTree = "<group>"; };
-		276BF8501C75B3FD00CE1FD2 /* VideoCacheFileManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VideoCacheFileManager.m; sourceTree = "<group>"; };
+		276BF84F1C75B3FD00CE1FD2 /* VideoCacheManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VideoCacheManager.h; sourceTree = "<group>"; };
+		276BF8501C75B3FD00CE1FD2 /* VideoCacheManager.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VideoCacheManager.m; sourceTree = "<group>"; };
 		27CB88501C59C584008BEF68 /* WebServerDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WebServerDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		27CB88541C59C584008BEF68 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		27CB88561C59C584008BEF68 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
@@ -77,6 +78,8 @@
 		27CB88891C59C73F008BEF68 /* GCDWebServerStreamedResponse.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GCDWebServerStreamedResponse.m; sourceTree = "<group>"; };
 		27CB88971C59C7E0008BEF68 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
 		27CB889B1C5A06AE008BEF68 /* SampleVideo_640x360_1mb.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = SampleVideo_640x360_1mb.mp4; sourceTree = "<group>"; };
+		3590CEC31E5827BB0005DA62 /* NIDebuggingTools.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NIDebuggingTools.h; sourceTree = "<group>"; };
+		3590CEC41E5827BB0005DA62 /* NIDebuggingTools.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NIDebuggingTools.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,8 +97,8 @@
 		27CB88471C59C584008BEF68 = {
 			isa = PBXGroup;
 			children = (
-				27CB88971C59C7E0008BEF68 /* libz.tbd */,
 				27CB88521C59C584008BEF68 /* WebServerDemo */,
+				27CB88971C59C7E0008BEF68 /* libz.tbd */,
 				27CB88511C59C584008BEF68 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -111,6 +114,8 @@
 		27CB88521C59C584008BEF68 /* WebServerDemo */ = {
 			isa = PBXGroup;
 			children = (
+				3590CEC31E5827BB0005DA62 /* NIDebuggingTools.h */,
+				3590CEC41E5827BB0005DA62 /* NIDebuggingTools.m */,
 				27CB889B1C5A06AE008BEF68 /* SampleVideo_640x360_1mb.mp4 */,
 				27CB886A1C59C73F008BEF68 /* GCDWebServer */,
 				27CB88561C59C584008BEF68 /* AppDelegate.h */,
@@ -124,8 +129,8 @@
 				27CB88531C59C584008BEF68 /* Supporting Files */,
 				276BF84C1C75A6AD00CE1FD2 /* VideoCacheTool.h */,
 				276BF84D1C75A6AD00CE1FD2 /* VideoCacheTool.m */,
-				276BF84F1C75B3FD00CE1FD2 /* VideoCacheFileManager.h */,
-				276BF8501C75B3FD00CE1FD2 /* VideoCacheFileManager.m */,
+				276BF84F1C75B3FD00CE1FD2 /* VideoCacheManager.h */,
+				276BF8501C75B3FD00CE1FD2 /* VideoCacheManager.m */,
 			);
 			path = WebServerDemo;
 			sourceTree = "<group>";
@@ -228,7 +233,7 @@
 				TargetAttributes = {
 					27CB884F1C59C584008BEF68 = {
 						CreatedOnToolsVersion = 7.2;
-						DevelopmentTeam = T5KJ7U24Z7;
+						DevelopmentTeam = KFSKA2NQKM;
 					};
 				};
 			};
@@ -277,9 +282,10 @@
 				27CB88951C59C73F008BEF68 /* GCDWebServerFileResponse.m in Sources */,
 				27CB885B1C59C584008BEF68 /* ViewController.m in Sources */,
 				27CB888C1C59C73F008BEF68 /* GCDWebServerFunctions.m in Sources */,
-				276BF8511C75B3FD00CE1FD2 /* VideoCacheFileManager.m in Sources */,
+				276BF8511C75B3FD00CE1FD2 /* VideoCacheManager.m in Sources */,
 				27CB888E1C59C73F008BEF68 /* GCDWebServerResponse.m in Sources */,
 				27CB888B1C59C73F008BEF68 /* GCDWebServerConnection.m in Sources */,
+				3590CEC51E5827BB0005DA62 /* NIDebuggingTools.m in Sources */,
 				27CB88581C59C584008BEF68 /* AppDelegate.m in Sources */,
 				27CB88921C59C73F008BEF68 /* GCDWebServerURLEncodedFormRequest.m in Sources */,
 				27CB88901C59C73F008BEF68 /* GCDWebServerFileRequest.m in Sources */,
@@ -396,6 +402,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				DEVELOPMENT_TEAM = KFSKA2NQKM;
 				HEADER_SEARCH_PATHS = "(SDKROOT)/usr/include/libxml2";
 				INFOPLIST_FILE = WebServerDemo/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
@@ -409,6 +416,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				DEVELOPMENT_TEAM = KFSKA2NQKM;
 				HEADER_SEARCH_PATHS = "(SDKROOT)/usr/include/libxml2";
 				INFOPLIST_FILE = WebServerDemo/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 7.0;
