@@ -43,8 +43,10 @@
   return [[[self class] alloc] initWithContentType:type streamBlock:block];
 }
 
-+ (instancetype)responseWithContentType:(NSString*)type asyncStreamBlock:(GCDWebServerAsyncStreamBlock)block {
-  return [[[self class] alloc] initWithContentType:type asyncStreamBlock:block];
++ (instancetype)responseWithContentType:(NSString*)type
+                       asyncStreamBlock:(GCDWebServerAsyncStreamBlock)block {
+  return [[[self class] alloc] initWithContentType:type
+                                  asyncStreamBlock:block];
 }
 
 - (instancetype)initWithContentType:(NSString*)type streamBlock:(GCDWebServerStreamBlock)block {
@@ -66,8 +68,17 @@
   return self;
 }
 
+// _block读取数据，读取完毕之后通知block
+// performReadDataWithCompletion 会被不断调用，没调用一次都会通过_block读取一定的数据；然后
+
+//  _writeBodyWithCompletionBlock
+//    performReadDataWithCompletion
+//      performReadDataWithCompletion
+//        asyncReadDataWithCompletion
+//          直到读取完毕，然后再调用
 - (void)asyncReadDataWithCompletion:(GCDWebServerBodyReaderCompletionBlock)block {
-  _block(block);
+    // _block获取实际的数据
+    _block(block);
 }
 
 - (NSString*)description {

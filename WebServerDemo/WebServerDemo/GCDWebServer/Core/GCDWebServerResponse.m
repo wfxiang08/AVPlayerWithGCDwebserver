@@ -256,6 +256,9 @@
     return [_reader open:error];
 }
 
+// asyncReadDataWithCompletion
+// performReadDataWithCompletion
+// 在 _writeBodyWithCompletionBlock 中，需要不断地从response/reader中读取数据； 一次读取可能读不完，因此 performReadDataWithCompletion 会多次调用
 - (void)performReadDataWithCompletion:(GCDWebServerBodyReaderCompletionBlock)block {
     
     if ([_reader respondsToSelector:@selector(asyncReadDataWithCompletion:)]) {

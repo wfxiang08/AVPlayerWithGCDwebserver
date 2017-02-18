@@ -52,7 +52,9 @@
     [self.webServer addDefaultHandlerForMethod:@"GET"
                                   requestClass:[GCDWebServerRequest class]
                              asyncProcessBlock:^(GCDWebServerRequest *request, GCDWebServerCompletionBlock completionBlock) {
-                                 
+                                 // 当前的handler该如何处理呢?
+                                 // 迅速处理的request, 得到一个Response, 并且回调: completionBlock
+                                 //                         Response本身不需要数据全部下载完毕，在completionBlock中会边读取，一边等待
                                  @strongify(self)
                                  
                                  // 请求的段名
@@ -68,6 +70,8 @@
                                  NSString* videoURL = [self getVideoPath: target];
                                  NSString* contentType = [self getContentType:target];
                                  NSString* fileName = target.lastPathComponent;
+                                 
+                                 NIDPRINT(@"VideoUrl: %@, ContentType: %@, fileName: %@", videoURL, contentType, fileName);
 
                                  //判断该段数据是否已经缓存了
                                  if([VideoCacheManager videoFilePartIsInCache:videoURL filePart:fileName]) {
@@ -95,13 +99,24 @@
                                  }
                                 
         
+                                 __block bool started = NO;
                                 // 没有缓存
                                 // 1、先请求数据
                                 // 直接下载
                                 GCDWebServerStreamedResponse *responseStream =
                                     [GCDWebServerStreamedResponse responseWithContentType:contentType
                                                                          asyncStreamBlock:^(GCDWebServerBodyReaderCompletionBlock completionBlockInner) {
-                                    
+                                                                             // 这里很关键: 当前的block应该有状态
+                                                                             // 例如如果底层和网络结合起来，每次回调都应该能从网络新读取一些数据；然后再回调 completionBlockInner
+                                                                             // 什么时候回调结束呢?
+                                                                             //   网络数据读取完毕，只有返回[NSData data]
+                                                                             if (started) {
+                                                                                 completionBlockInner([NSData data], nil);
+                                                                                 return;
+                                                                             } else {
+                                                                                 started = YES;
+                                                                             }
+                                                                             
                                                                              NIDPRINT(@"Target: %@", target);
                                                                              NIDPRINT(@"FilePart: %@, VideoPart: %@", fileName, videoURL);
                                                                              
@@ -148,6 +163,7 @@
                                                                              completionBlockInner(data, nil);
                                                                          }];
                                 
+                                 // 这个应该算是立马返回了
                                  completionBlock(responseStream);
                             }];
                             
