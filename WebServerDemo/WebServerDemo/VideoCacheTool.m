@@ -11,8 +11,9 @@
 #import "GCDWebServerPrivate.h"
 #import "VideoCacheManager.h"
 #import "NIDebuggingTools.h"
+#import "NSString+NSString_URLEndecode.h"
 
-#define FirstPatrFileName   @"list.m3u8"
+#define FirstPatrFileName   @"playlist.m3u8"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -56,58 +57,76 @@
                                  
                                  // 请求的段名
                                  NSString *requestPath = [request.path stringByReplacingOccurrencesOfString:@"/" withString:@""];
-                                 NIDPRINT(@"RequestPath: %@", request.path);
+                                 NSString* target = request.query[@"target"];
                                  
+                                 NIDPRINT(@"RequestPath: %@", request.path);
+                                 NIDPRINT(@"Target: %@", target);
+
+                                 
+                                 int a = 10;
                                  // 判断是否已经开始缓存了
 
             
-                                 //判断该段数据是否已经缓存了
-                                 if([VideoCacheManager videoFilePartIsInCache:self.videoRealUrlString filePart:requestPath]) {
-                                     
-                                     //已经缓存了，直接返回本地数据
-                                     NSString *contentType = [self getContentType:requestPath];
-                                     NSString *localHashPath = [VideoCacheManager getVideoFileCachePath:self.videoRealUrlString
-                                                                                                   filePart:requestPath];
-            
-                                     
-                                     NIDPRINT(@"RequestPath: %@, CurrentThread: %@", localHashPath, [NSThread currentThread]);
-                                     
-                                     // 从本地读取数据，直接返回
-                                     NSData *responseData = [NSData dataWithContentsOfFile:localHashPath];
-                                     GCDWebServerDataResponse* response = [GCDWebServerDataResponse responseWithData:responseData
-                                                                                                         contentType:contentType];
-            
-                                     completionBlock(response);
-            
-                                     //有缓存，返回数据，结束本次
-                                     return;
-                                 }
+//                                 //判断该段数据是否已经缓存了
+//                                 if([VideoCacheManager videoFilePartIsInCache:self.videoRealUrlString filePart:requestPath]) {
+//                                     
+//                                     //已经缓存了，直接返回本地数据
+//                                     NSString *contentType = [self getContentType:requestPath];
+//                                     NSString *localHashPath = [VideoCacheManager getVideoFileCachePath:self.videoRealUrlString
+//                                                                                                   filePart:requestPath];
+//            
+//                                     
+//                                     NIDPRINT(@"RequestPath: %@, CurrentThread: %@", localHashPath, [NSThread currentThread]);
+//                                     
+//                                     // 从本地读取数据，直接返回
+//                                     NSData *responseData = [NSData dataWithContentsOfFile:localHashPath];
+//                                     GCDWebServerDataResponse* response = [GCDWebServerDataResponse responseWithData:responseData
+//                                                                                                         contentType:contentType];
+//            
+//                                     completionBlock(response);
+//            
+//                                     //有缓存，返回数据，结束本次
+//                                     return;
+//                                 }
                                 
         
                                 // 没有缓存
                                 // 1、先请求数据
-                                NSString *videoUrlString = [NSString stringWithFormat:@"%@/%@", self.videoRealUrlString, requestPath];
-                                NSURL *videoUrl = [NSURL URLWithString:videoUrlString];
-                                NSString *contentType = [self getContentType:requestPath];
+                                NSString *contentType = [self getContentType:target];
                                 
                                 // 直接下载
                                 GCDWebServerStreamedResponse *responseStream =
                                     [GCDWebServerStreamedResponse responseWithContentType:contentType
                                                                          asyncStreamBlock:^(GCDWebServerBodyReaderCompletionBlock completionBlock) {
                                     
-                                                                             NSData *data;
 
-                                                                             if ([VideoCacheManager getVideoFileCachePath:self.videoRealUrlString
-                                                                                                                     filePart:requestPath]) {
-                                                                                 data = [NSData data];
-                                                                             } else {
-                                                                                 data = [NSData dataWithContentsOfURL:videoUrl];
-                                                                                 [VideoCacheManager copyCacheFileToCacheDirectoryWithData:data
-                                                                                                                                 videoRealUrl:self.videoRealUrlString
-                                                                                                                                     filePart:requestPath];
+//                                                                             NSString* cacheUrl = [VideoCacheManager getVideoFileCachePath:[self getVideoPath: target]
+//                                                                                                                                  filePart:requestPath];
+//                                                                             if ([[NSFileManager defaultManager] fileExistsAtPath:cacheUrl]) {
+//                                                                                 data = [NSData dataWithContentsOfFile:cacheUrl];
+//                                                                             } else {
+                                                                             
+                                                                             NIDPRINT(@"VideoURL: %@", target);
+                                                                             
+                                                                             NSData* data = [NSData dataWithContentsOfURL:[NSURL URLWithString:target]];
+                                                                             NSString* str = [[NSString alloc] initWithData: data encoding:NSUTF8StringEncoding];
 
+                                                                             for (int i = 0; i < 73; i++) {
+                                                                                 NSString* pattern = [NSString stringWithFormat:@"seg%05d.ts", i];
+                                                                                 NSString* targetUrl = [NSString stringWithFormat:@"http://192.168.31.187:8000/01/hls-low/%@", pattern];
+                                                                                 
+                                                                                 NSString* newUrl = [self getLocalURL:targetUrl];
+                                                                                 str = [str stringByReplacingOccurrencesOfString:pattern withString:newUrl];
                                                                              }
-                                    
+                                                                             
+                                                                             data = [str dataUsingEncoding:NSUTF8StringEncoding];
+                                                                                 
+//                                                                             [VideoCacheManager copyCacheFileToCacheDirectoryWithData:data
+//                                                                                                                                 videoRealUrl:self.videoRealUrlString
+//                                                                                                                                     filePart:requestPath];
+
+                                                                             // }
+                                                                             // 数据处理完毕
                                                                              completionBlock(data, nil);
                                                                          }];
                                 
@@ -119,19 +138,22 @@
         
     
     //设置服务器的本地url
-    self.videoLocalUrlString = self.webServer.serverURL.relativeString;
+    self.localHttpHost = self.webServer.serverURL.relativeString;
 }
 
-- (NSString *)getUrlStringWithRealUrlString:(NSString *)realUrlString {
+- (NSString*) getVideoPath:(NSString*)m3u8FileUrl {
+    return [m3u8FileUrl stringByReplacingOccurrencesOfString:@"/playlist.m3u8" withString:@""];
+}
+
+- (NSString *)getLocalURL:(NSString *)realUrlString {
     
-    self.videoRealUrlString = [realUrlString stringByReplacingOccurrencesOfString:@"/list.m3u8" withString:@""];
-    
-    NSString *urlStr = [NSString stringWithFormat:@"%@",self.videoLocalUrlString];
-    
-    urlStr = [NSString stringWithFormat:@"%@%@?realUrlStr=%@", urlStr, FirstPatrFileName, realUrlString];
+    NSString *urlStr = [NSString stringWithFormat:@"%@video?target=%@",
+                        self.localHttpHost, [realUrlString URLEncode]];
     
     return urlStr;
 }
+
+
 
 //
 // 返回ContentType:
@@ -139,11 +161,13 @@
 //   ts   --> video/MP2T
 // 暂不考虑其他的格式的文件
 //
-- (NSString *)getContentType:(NSString *)partName {
+- (NSString *)getContentType:(NSString *)target {
     
-    NSString *contenTypeString = [partName isEqualToString:FirstPatrFileName] ? @"application/x-mpegURL" : @"video/MP2T";
-    
-    return contenTypeString;
+    if ([target rangeOfString:@".ts"].length > 0) {
+        return @"video/MP2T";
+    } else {
+        return @"application/x-mpegURL";
+    }
 }
 
 - (void)stopWebSever {

@@ -31,6 +31,7 @@
 		27CB88981C59C7E0008BEF68 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 27CB88971C59C7E0008BEF68 /* libz.tbd */; };
 		27CB889C1C5A06AE008BEF68 /* SampleVideo_640x360_1mb.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 27CB889B1C5A06AE008BEF68 /* SampleVideo_640x360_1mb.mp4 */; };
 		3590CEC51E5827BB0005DA62 /* NIDebuggingTools.m in Sources */ = {isa = PBXBuildFile; fileRef = 3590CEC41E5827BB0005DA62 /* NIDebuggingTools.m */; };
+		3590CEC81E58789D0005DA62 /* NSString+NSString_URLEndecode.m in Sources */ = {isa = PBXBuildFile; fileRef = 3590CEC71E58789D0005DA62 /* NSString+NSString_URLEndecode.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -80,6 +81,8 @@
 		27CB889B1C5A06AE008BEF68 /* SampleVideo_640x360_1mb.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = SampleVideo_640x360_1mb.mp4; sourceTree = "<group>"; };
 		3590CEC31E5827BB0005DA62 /* NIDebuggingTools.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NIDebuggingTools.h; sourceTree = "<group>"; };
 		3590CEC41E5827BB0005DA62 /* NIDebuggingTools.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NIDebuggingTools.m; sourceTree = "<group>"; };
+		3590CEC61E58789D0005DA62 /* NSString+NSString_URLEndecode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSString+NSString_URLEndecode.h"; sourceTree = "<group>"; };
+		3590CEC71E58789D0005DA62 /* NSString+NSString_URLEndecode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSString+NSString_URLEndecode.m"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,6 +100,8 @@
 		27CB88471C59C584008BEF68 = {
 			isa = PBXGroup;
 			children = (
+				3590CEC61E58789D0005DA62 /* NSString+NSString_URLEndecode.h */,
+				3590CEC71E58789D0005DA62 /* NSString+NSString_URLEndecode.m */,
 				27CB88521C59C584008BEF68 /* WebServerDemo */,
 				27CB88971C59C7E0008BEF68 /* libz.tbd */,
 				27CB88511C59C584008BEF68 /* Products */,
@@ -280,6 +285,7 @@
 				27CB88941C59C73F008BEF68 /* GCDWebServerErrorResponse.m in Sources */,
 				27CB888A1C59C73F008BEF68 /* GCDWebServer.m in Sources */,
 				27CB88951C59C73F008BEF68 /* GCDWebServerFileResponse.m in Sources */,
+				3590CEC81E58789D0005DA62 /* NSString+NSString_URLEndecode.m in Sources */,
 				27CB885B1C59C584008BEF68 /* ViewController.m in Sources */,
 				27CB888C1C59C73F008BEF68 /* GCDWebServerFunctions.m in Sources */,
 				276BF8511C75B3FD00CE1FD2 /* VideoCacheManager.m in Sources */,

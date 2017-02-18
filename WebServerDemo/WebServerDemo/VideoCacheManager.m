@@ -104,11 +104,18 @@
 + (BOOL)copyCacheFileToCacheDirectoryWithData:(NSData *)data
                                  videoRealUrl:(NSString *)videoRealUrl
                                      filePart:(NSString *)filePart {
-//    NSLog(@"%@", tempPath);
+
+    [self ensureVideoCacheDirForUrl:videoRealUrl];
+
     NSString *newFilePathString = [self getVideoFileCachePath:videoRealUrl filePart:filePart];
     
-//    newFilePathString = [newFilePathString stringByReplacingOccurrencesOfString:@"list.m3u8" withString:@""];
     NSURL *newFilePathUrl = [NSURL fileURLWithPath:newFilePathString];
+    
+    NIDPRINT(@"Save Cache To File: %@", newFilePathUrl);
+    
+    if ([[NSFileManager defaultManager] fileExistsAtPath: newFilePathString]) {
+        [[NSFileManager defaultManager] removeItemAtPath: newFilePathString error: nil];
+    }
     
     BOOL ret = [data writeToURL:newFilePathUrl atomically:YES];
     

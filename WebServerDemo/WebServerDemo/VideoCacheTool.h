@@ -10,11 +10,10 @@
 
 @interface VideoCacheTool : NSObject
 
-@property (nonatomic, strong) NSString *videoLocalUrlString;
+@property (nonatomic, strong) NSString *localHttpHost;
 
-@property (nonatomic, copy) NSString *videoRealUrlString;
 
-- (NSString *)getUrlStringWithRealUrlString:(NSString *)realUrlString;
+- (NSString *)getLocalURL:(NSString *)realUrlString;
 
 - (void)stopWebSever;
 
