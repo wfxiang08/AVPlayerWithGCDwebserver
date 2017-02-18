@@ -36,10 +36,13 @@
 #define kZlibErrorDomain @"ZlibErrorDomain"
 #define kGZipInitialBufferSize (256 * 1024)
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 @interface GCDWebServerBodyEncoder : NSObject <GCDWebServerBodyReader>
 - (id)initWithResponse:(GCDWebServerResponse*)response reader:(id<GCDWebServerBodyReader>)reader;
 @end
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 @interface GCDWebServerGZipEncoder : GCDWebServerBodyEncoder
 @end
 
@@ -50,6 +53,7 @@
 }
 @end
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 @implementation GCDWebServerBodyEncoder
 
 - (id)initWithResponse:(GCDWebServerResponse*)response reader:(id<GCDWebServerBodyReader>)reader {
@@ -74,6 +78,7 @@
 
 @end
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 @interface GCDWebServerGZipEncoder () {
 @private
   z_stream _stream;
@@ -81,6 +86,7 @@
 }
 @end
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 @implementation GCDWebServerGZipEncoder
 
 - (id)initWithResponse:(GCDWebServerResponse*)response reader:(id<GCDWebServerBodyReader>)reader {
@@ -128,22 +134,25 @@
         NSUInteger maxLength = encodedData.length - length;
         _stream.next_out = (Bytef*)((char*)encodedData.mutableBytes + length);
         _stream.avail_out = (uInt)maxLength;
-        int result = deflate(&_stream, data.length ? Z_NO_FLUSH : Z_FINISH);
-        if (result == Z_STREAM_END) {
-          _finished = YES;
-        } else if (result != Z_OK) {
-          if (error) {
-            *error = [NSError errorWithDomain:kZlibErrorDomain code:result userInfo:nil];
+          
+          // 调用: deflat 做gzip的解压缩
+          int result = deflate(&_stream, data.length ? Z_NO_FLUSH : Z_FINISH);
+          if (result == Z_STREAM_END) {
+              _finished = YES;
+          } else if (result != Z_OK) {
+              if (error) {
+                  *error = [NSError errorWithDomain:kZlibErrorDomain code:result userInfo:nil];
+              }
+              return nil;
           }
-          return nil;
+          
+          length += maxLength - _stream.avail_out;
+          if (_stream.avail_out > 0) {
+              break;
+          }
+          encodedData.length = 2 * encodedData.length;  // zlib has used all the output buffer so resize it and try again in case more data is available
         }
-        length += maxLength - _stream.avail_out;
-        if (_stream.avail_out > 0) {
-          break;
-        }
-        encodedData.length = 2 * encodedData.length;  // zlib has used all the output buffer so resize it and try again in case more data is available
-      }
-      GWS_DCHECK(_stream.avail_in == 0);
+        GWS_DCHECK(_stream.avail_in == 0);
     } while (length == 0);  // Make sure we don't return an empty NSData if not in finished state
     encodedData.length = length;
   }
@@ -151,12 +160,13 @@
 }
 
 - (void)close {
-  deflateEnd(&_stream);
-  [super close];
+    deflateEnd(&_stream);
+    [super close];
 }
 
 @end
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 @interface GCDWebServerResponse () {
 @private
   NSString* _type;
@@ -175,9 +185,11 @@
 }
 @end
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 @implementation GCDWebServerResponse
 
-@synthesize contentType=_type, contentLength=_length, statusCode=_status, cacheControlMaxAge=_maxAge, lastModifiedDate=_lastModified, eTag=_eTag,
+@synthesize contentType=_type, contentLength=_length, statusCode=_status,
+            cacheControlMaxAge=_maxAge, lastModifiedDate=_lastModified, eTag=_eTag,
             gzipContentEncodingEnabled=_gzipped, additionalHeaders=_headers;
 
 + (instancetype)response {
@@ -205,15 +217,17 @@
 }
 
 - (BOOL)usesChunkedTransferEncoding {
-  return (_type != nil) && (_length == NSUIntegerMax);
+    // 如果有body, 并且长度不定
+    return (_type != nil) && (_length == NSUIntegerMax);
 }
 
 - (BOOL)open:(NSError**)error {
-  return YES;
+    return YES;
 }
 
 - (NSData*)readData:(NSError**)error {
-  return [NSData data];
+    // 默认没有任何动作，返回空的NSData
+    return [NSData data];
 }
 
 - (void)close {
@@ -221,38 +235,44 @@
 }
 
 - (void)prepareForReading {
-  _reader = self;
-  if (_gzipped) {
-    GCDWebServerGZipEncoder* encoder = [[GCDWebServerGZipEncoder alloc] initWithResponse:self reader:_reader];
-    [_encoders addObject:encoder];
-    _reader = encoder;
-  }
+    // 如何处理gzipped这个逻辑呢?
+    _reader = self;
+    if (_gzipped) {
+        //  stream --> gzip
+        GCDWebServerGZipEncoder* encoder = [[GCDWebServerGZipEncoder alloc] initWithResponse:self reader:_reader];
+        [_encoders addObject:encoder];
+        _reader = encoder;
+    }
 }
 
 - (BOOL)performOpen:(NSError**)error {
-  GWS_DCHECK(_type);
-  GWS_DCHECK(_reader);
-  if (_opened) {
-    GWS_DNOT_REACHED();
-    return NO;
-  }
-  _opened = YES;
-  return [_reader open:error];
+    GWS_DCHECK(_type);
+    GWS_DCHECK(_reader);
+    if (_opened) {
+        GWS_DNOT_REACHED();
+        return NO;
+    }
+    _opened = YES;
+    return [_reader open:error];
 }
 
 - (void)performReadDataWithCompletion:(GCDWebServerBodyReaderCompletionBlock)block {
-  if ([_reader respondsToSelector:@selector(asyncReadDataWithCompletion:)]) {
-    [_reader asyncReadDataWithCompletion:[block copy]];
-  } else {
-    NSError* error = nil;
-    NSData* data = [_reader readData:&error];
-    block(data, error);
-  }
+    
+    if ([_reader respondsToSelector:@selector(asyncReadDataWithCompletion:)]) {
+        // 异步读取数据，然后再callback
+        // reader应该是自己做了去gzip, 去chunk等操作，最终读取的是raw data
+        [_reader asyncReadDataWithCompletion:[block copy]];
+    } else {
+        // 同步读取数据
+        NSError* error = nil;
+        NSData* data = [_reader readData:&error];
+        block(data, error);
+    }
 }
 
 - (void)performClose {
-  GWS_DCHECK(_opened);
-  [_reader close];
+    GWS_DCHECK(_opened);
+    [_reader close];
 }
 
 - (NSString*)description {
@@ -283,27 +303,28 @@
 
 @implementation GCDWebServerResponse (Extensions)
 
+// 定义积累特殊的Response
 + (instancetype)responseWithStatusCode:(NSInteger)statusCode {
-  return [[self alloc] initWithStatusCode:statusCode];
+    return [[self alloc] initWithStatusCode:statusCode];
 }
 
 + (instancetype)responseWithRedirect:(NSURL*)location permanent:(BOOL)permanent {
-  return [[self alloc] initWithRedirect:location permanent:permanent];
+    return [[self alloc] initWithRedirect:location permanent:permanent];
 }
 
 - (instancetype)initWithStatusCode:(NSInteger)statusCode {
-  if ((self = [self init])) {
-    self.statusCode = statusCode;
-  }
-  return self;
+    if ((self = [self init])) {
+        self.statusCode = statusCode;
+    }
+    return self;
 }
 
 - (instancetype)initWithRedirect:(NSURL*)location permanent:(BOOL)permanent {
-  if ((self = [self init])) {
-    self.statusCode = permanent ? kGCDWebServerHTTPStatusCode_MovedPermanently : kGCDWebServerHTTPStatusCode_TemporaryRedirect;
-    [self setValue:[location absoluteString] forAdditionalHeader:@"Location"];
-  }
-  return self;
+    if ((self = [self init])) {
+        self.statusCode = permanent ? kGCDWebServerHTTPStatusCode_MovedPermanently : kGCDWebServerHTTPStatusCode_TemporaryRedirect;
+        [self setValue:[location absoluteString] forAdditionalHeader:@"Location"];
+    }
+    return self;
 }
 
 @end

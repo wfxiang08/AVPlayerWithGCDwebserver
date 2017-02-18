@@ -67,12 +67,15 @@ static int32_t _connectionCounter = 0;
   NSUInteger _bytesWritten;
   BOOL _virtualHEAD;
   
-  CFHTTPMessageRef _requestMessage;
-  GCDWebServerRequest* _request;
-  GCDWebServerHandler* _handler;
-  CFHTTPMessageRef _responseMessage;
-  GCDWebServerResponse* _response;
-  NSInteger _statusCode;
+    CFHTTPMessageRef _requestMessage;
+  
+    // 当前的请求，当前的handler
+    GCDWebServerRequest* _request;
+    GCDWebServerHandler* _handler;
+    
+    CFHTTPMessageRef _responseMessage;
+    GCDWebServerResponse* _response;
+    NSInteger _statusCode;
   
   BOOL _opened;
 #ifdef __GCDWEBSERVER_ENABLE_TESTING__
@@ -87,95 +90,119 @@ static int32_t _connectionCounter = 0;
 
 @implementation GCDWebServerConnection (Read)
 
+// 从Server的角度 读取数据
 - (void)_readData:(NSMutableData*)data withLength:(NSUInteger)length completionBlock:(ReadDataCompletionBlock)block {
-  dispatch_read(_socket, length, kGCDWebServerGCDQueue, ^(dispatch_data_t buffer, int error) {
     
-    @autoreleasepool {
-      if (error == 0) {
-        size_t size = dispatch_data_get_size(buffer);
-        if (size > 0) {
-          NSUInteger originalLength = data.length;
-          dispatch_data_apply(buffer, ^bool(dispatch_data_t region, size_t chunkOffset, const void* chunkBytes, size_t chunkSize) {
-            [data appendBytes:chunkBytes length:chunkSize];
-            return true;
-          });
-          [self didReadBytes:((char*)data.bytes + originalLength) length:(data.length - originalLength)];
-          block(YES);
-        } else {
-          if (_bytesRead > 0) {
-            GWS_LOG_ERROR(@"No more data available on socket %i", _socket);
-          } else {
-            GWS_LOG_WARNING(@"No data received from socket %i", _socket);
-          }
-          block(NO);
+    // 从socket中读取指定长度的数据：length
+    dispatch_read(_socket, length, kGCDWebServerGCDQueue, ^(dispatch_data_t buffer, int error) {
+    
+        @autoreleasepool {
+            if (error == 0) {
+                size_t size = dispatch_data_get_size(buffer);
+                if (size > 0) {
+                    NSUInteger originalLength = data.length;
+                    
+                    // 从buffer中拷贝给定的数据到data中
+                    dispatch_data_apply(buffer, ^bool(dispatch_data_t region, size_t chunkOffset,
+                                                      const void* chunkBytes, size_t chunkSize) {
+                        [data appendBytes:chunkBytes length:chunkSize];
+                        return true;
+                    });
+                    
+                    // 回调后面的Parser状态机
+                    [self didReadBytes:((char*)data.bytes + originalLength) length:(data.length - originalLength)];
+                    
+                    // 回调?
+                    block(YES);
+                } else {
+                    // 如果数据读取失败，则异常处理
+                    if (_bytesRead > 0) {
+                        GWS_LOG_ERROR(@"No more data available on socket %i", _socket);
+                    } else {
+                        GWS_LOG_WARNING(@"No data received from socket %i", _socket);
+                    }
+                    block(NO);
+                }
+            } else {
+                GWS_LOG_ERROR(@"Error while reading from socket %i: %s (%i)", _socket, strerror(error), error);
+                block(NO);
+            }
         }
-      } else {
-        GWS_LOG_ERROR(@"Error while reading from socket %i: %s (%i)", _socket, strerror(error), error);
-        block(NO);
-      }
-    }
-    
-  });
+    });
 }
 
 - (void)_readHeaders:(NSMutableData*)headersData withCompletionBlock:(ReadHeadersCompletionBlock)block {
-  GWS_DCHECK(_requestMessage);
-  [self _readData:headersData withLength:NSUIntegerMax completionBlock:^(BOOL success) {
+    GWS_DCHECK(_requestMessage);
     
-    if (success) {
-      NSRange range = [headersData rangeOfData:_CRLFCRLFData options:0 range:NSMakeRange(0, headersData.length)];
-      if (range.location == NSNotFound) {
-        [self _readHeaders:headersData withCompletionBlock:block];
-      } else {
-        NSUInteger length = range.location + range.length;
-        if (CFHTTPMessageAppendBytes(_requestMessage, headersData.bytes, length)) {
-          if (CFHTTPMessageIsHeaderComplete(_requestMessage)) {
-            block([headersData subdataWithRange:NSMakeRange(length, headersData.length - length)]);
-          } else {
-            GWS_LOG_ERROR(@"Failed parsing request headers from socket %i", _socket);
-            block(nil);
-          }
-        } else {
-          GWS_LOG_ERROR(@"Failed appending request headers data from socket %i", _socket);
-          block(nil);
-        }
-      }
-    } else {
-      block(nil);
-    }
+    // 从socket中读取尽可能多的数据放在: headersData中， 并且进行完整性分析
+    [self _readData:headersData withLength:NSUIntegerMax completionBlock:^(BOOL success) {
     
-  }];
+        if (success) {
+            
+            NSRange range = [headersData rangeOfData:_CRLFCRLFData
+                                             options:0
+                                               range:NSMakeRange(0, headersData.length)];
+            
+            // 如果没有找到header结束的地方? 则继续读取Header的数据
+            if (range.location == NSNotFound) {
+                [self _readHeaders:headersData withCompletionBlock:block];
+            } else {
+                
+                // 找到了，将headerData中的数据拷贝到_requestMessage中
+                NSUInteger length = range.location + range.length;
+                if (CFHTTPMessageAppendBytes(_requestMessage, headersData.bytes, length)) {
+                    
+                    // 成功解析Header, 则继续block
+                    if (CFHTTPMessageIsHeaderComplete(_requestMessage)) {
+                        block([headersData subdataWithRange:NSMakeRange(length, headersData.length - length)]);
+                    } else {
+                        GWS_LOG_ERROR(@"Failed parsing request headers from socket %i", _socket);
+                        block(nil);
+                    }
+                } else {
+                    GWS_LOG_ERROR(@"Failed appending request headers data from socket %i", _socket);
+                    block(nil);
+                }
+            }
+            } else {
+                block(nil);
+            }
+        }];
 }
 
 - (void)_readBodyWithRemainingLength:(NSUInteger)length completionBlock:(ReadBodyCompletionBlock)block {
-  GWS_DCHECK([_request hasBody] && ![_request usesChunkedTransferEncoding]);
-  NSMutableData* bodyData = [[NSMutableData alloc] initWithCapacity:kBodyReadCapacity];
-  [self _readData:bodyData withLength:length completionBlock:^(BOOL success) {
+    GWS_DCHECK([_request hasBody] && ![_request usesChunkedTransferEncoding]);
+    NSMutableData* bodyData = [[NSMutableData alloc] initWithCapacity:kBodyReadCapacity];
     
-    if (success) {
-      if (bodyData.length <= length) {
-        NSError* error = nil;
-        if ([_request performWriteData:bodyData error:&error]) {
-          NSUInteger remainingLength = length - bodyData.length;
-          if (remainingLength) {
-            [self _readBodyWithRemainingLength:remainingLength completionBlock:block];
-          } else {
-            block(YES);
-          }
+    [self _readData:bodyData withLength:length completionBlock:^(BOOL success) {
+    
+        if (success) {
+            if (bodyData.length <= length) {
+                NSError* error = nil;
+                
+                // 将读取的数据写入: _request中
+                if ([_request performWriteData:bodyData error:&error]) {
+                    NSUInteger remainingLength = length - bodyData.length;
+                    if (remainingLength) {
+                        // 继续读取剩下的 body
+                        [self _readBodyWithRemainingLength:remainingLength completionBlock:block];
+                    } else {
+                        // 读取完毕之后回调
+                        block(YES);
+                    }
+                } else {
+                    GWS_LOG_ERROR(@"Failed writing request body on socket %i: %@", _socket, error);
+                    block(NO);
+                }
+            } else {
+                GWS_LOG_ERROR(@"Unexpected extra content reading request body on socket %i", _socket);
+                block(NO);
+                GWS_DNOT_REACHED();
+            }
         } else {
-          GWS_LOG_ERROR(@"Failed writing request body on socket %i: %@", _socket, error);
-          block(NO);
+            block(NO);
         }
-      } else {
-        GWS_LOG_ERROR(@"Unexpected extra content reading request body on socket %i", _socket);
-        block(NO);
-        GWS_DNOT_REACHED();
-      }
-    } else {
-      block(NO);
-    }
-    
-  }];
+    }];
 }
 
 static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
@@ -247,22 +274,29 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
 @implementation GCDWebServerConnection (Write)
 
 - (void)_writeData:(NSData*)data withCompletionBlock:(WriteDataCompletionBlock)block {
-  dispatch_data_t buffer = dispatch_data_create(data.bytes, data.length, kGCDWebServerGCDQueue, ^{
-    [data self];  // Keeps ARC from releasing data too early
-  });
-  dispatch_write(_socket, buffer, kGCDWebServerGCDQueue, ^(dispatch_data_t remainingData, int error) {
+    // 1. 创建一个buffer
+    dispatch_data_t buffer = dispatch_data_create(data.bytes, data.length, kGCDWebServerGCDQueue, ^{
+        [data self];  // Keeps ARC from releasing data too early
+    });
     
-    @autoreleasepool {
-      if (error == 0) {
-        GWS_DCHECK(remainingData == NULL);
-        [self didWriteBytes:data.bytes length:data.length];
-        block(YES);
-      } else {
-        GWS_LOG_ERROR(@"Error while writing to socket %i: %s (%i)", _socket, strerror(error), error);
-        block(NO);
-      }
-    }
+    // 2. 将buffer中的数据写入socket中，返回给client
+    dispatch_write(_socket, buffer, kGCDWebServerGCDQueue, ^(dispatch_data_t remainingData, int error) {
     
+        @autoreleasepool {
+            if (error == 0) {
+                // 必须写完
+                GWS_DCHECK(remainingData == NULL);
+                
+                // 更新内部状态
+                [self didWriteBytes:data.bytes length:data.length];
+                
+                // 回调
+                block(YES);
+            } else {
+                GWS_LOG_ERROR(@"Error while writing to socket %i: %s (%i)", _socket, strerror(error), error);
+                block(NO);
+            }
+        }
   });
 #if !OS_OBJECT_USE_OBJC_RETAIN_RELEASE
   dispatch_release(buffer);
@@ -270,64 +304,85 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
 }
 
 - (void)_writeHeadersWithCompletionBlock:(WriteHeadersCompletionBlock)block {
-  GWS_DCHECK(_responseMessage);
-  CFDataRef data = CFHTTPMessageCopySerializedMessage(_responseMessage);
-  [self _writeData:(__bridge NSData*)data withCompletionBlock:block];
-  CFRelease(data);
+    //  序列化返回的Headers
+    GWS_DCHECK(_responseMessage);
+    CFDataRef data = CFHTTPMessageCopySerializedMessage(_responseMessage);
+    
+    // 写入socket
+    [self _writeData:(__bridge NSData*)data withCompletionBlock:block];
+    CFRelease(data);
 }
 
+// 最终成功之后回调: block(YES); 否则回调 block(NO)
 - (void)_writeBodyWithCompletionBlock:(WriteBodyCompletionBlock)block {
-  GWS_DCHECK([_response hasBody]);
-  [_response performReadDataWithCompletion:^(NSData* data, NSError* error) {
+    GWS_DCHECK([_response hasBody]);
     
-    if (data) {
-      if (data.length) {
-        if (_response.usesChunkedTransferEncoding) {
-          const char* hexString = [[NSString stringWithFormat:@"%lx", (unsigned long)data.length] UTF8String];
-          size_t hexLength = strlen(hexString);
-          NSData* chunk = [NSMutableData dataWithLength:(hexLength + 2 + data.length + 2)];
-          if (chunk == nil) {
-            GWS_LOG_ERROR(@"Failed allocating memory for response body chunk for socket %i: %@", _socket, error);
-            block(NO);
-            return;
-          }
-          char* ptr = (char*)[(NSMutableData*)chunk mutableBytes];
-          bcopy(hexString, ptr, hexLength);
-          ptr += hexLength;
-          *ptr++ = '\r';
-          *ptr++ = '\n';
-          bcopy(data.bytes, ptr, data.length);
-          ptr += data.length;
-          *ptr++ = '\r';
-          *ptr = '\n';
-          data = chunk;
-        }
-        [self _writeData:data withCompletionBlock:^(BOOL success) {
+    // 从response中读取数据
+    [_response performReadDataWithCompletion:^(NSData* data, NSError* error) {
+    
+        if (data) {
+            if (data.length) {
+                // 如果从response读取了有效的数据
+                // 并且使用Chunked编码
+                if (_response.usesChunkedTransferEncoding) {
+                    const char* hexString = [[NSString stringWithFormat:@"%lx", (unsigned long)data.length] UTF8String];
+                    size_t hexLength = strlen(hexString);
+                    
+                    // 创建一个chunk
+                    NSData* chunk = [NSMutableData dataWithLength:(hexLength + 2 + data.length + 2)];
+                    if (chunk == nil) {
+                        GWS_LOG_ERROR(@"Failed allocating memory for response body chunk for socket %i: %@", _socket, error);
+                        block(NO);
+                        return;
+                    }
+                    
+                    char* ptr = (char*)[(NSMutableData*)chunk mutableBytes];
+                    
+                    // 长度: hexLength
+                    bcopy(hexString, ptr, hexLength);
+                    ptr += hexLength;
+                    
+                    // 长度: 2
+                    *ptr++ = '\r';
+                    *ptr++ = '\n';
+                    
+                    // 长度: data.length
+                    bcopy(data.bytes, ptr, data.length);
+                    ptr += data.length;
+                    
+                    // 长度: 2
+                    *ptr++ = '\r';
+                    *ptr = '\n';
+                    data = chunk;
+                }
+                
+                // 通过chunked格式返回数据
+                [self _writeData:data withCompletionBlock:^(BOOL success) {
           
-          if (success) {
-            [self _writeBodyWithCompletionBlock:block];
-          } else {
-            block(NO);
-          }
+                    if (success) {
+                        // 这里的成功都是局部的成功
+                        [self _writeBodyWithCompletionBlock:block];
+                    } else {
+                        block(NO);
+                    }
           
-        }];
-      } else {
-        if (_response.usesChunkedTransferEncoding) {
-          [self _writeData:_lastChunkData withCompletionBlock:^(BOOL success) {
-            
-            block(success);
-            
-          }];
+                }];
+            } else {
+                // 如果data.length为0， 则处理 _lastChunkData
+                if (_response.usesChunkedTransferEncoding) {
+                    [self _writeData:_lastChunkData withCompletionBlock:^(BOOL success) {
+                        block(success);
+                    }];
+                } else {
+                    // block表示最终成功
+                    block(YES);
+                }
+            }
         } else {
-          block(YES);
+            GWS_LOG_ERROR(@"Failed reading response body for socket %i: %@", _socket, error);
+            block(NO);
         }
-      }
-    } else {
-      GWS_LOG_ERROR(@"Failed reading response body for socket %i: %@", _socket, error);
-      block(NO);
-    }
-    
-  }];
+    }];
 }
 
 @end
@@ -337,28 +392,28 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
 @synthesize server=_server, localAddressData=_localAddress, remoteAddressData=_remoteAddress, totalBytesRead=_bytesRead, totalBytesWritten=_bytesWritten;
 
 + (void)initialize {
-  if (_CRLFData == nil) {
-    _CRLFData = [[NSData alloc] initWithBytes:"\r\n" length:2];
-    GWS_DCHECK(_CRLFData);
-  }
-  if (_CRLFCRLFData == nil) {
-    _CRLFCRLFData = [[NSData alloc] initWithBytes:"\r\n\r\n" length:4];
-    GWS_DCHECK(_CRLFCRLFData);
-  }
-  if (_continueData == nil) {
-    CFHTTPMessageRef message = CFHTTPMessageCreateResponse(kCFAllocatorDefault, 100, NULL, kCFHTTPVersion1_1);
-    _continueData = CFBridgingRelease(CFHTTPMessageCopySerializedMessage(message));
-    CFRelease(message);
-    GWS_DCHECK(_continueData);
-  }
-  if (_lastChunkData == nil) {
-    _lastChunkData = [[NSData alloc] initWithBytes:"0\r\n\r\n" length:5];
-  }
-  if (_digestAuthenticationNonce == nil) {
-    CFUUIDRef uuid = CFUUIDCreate(kCFAllocatorDefault);
-    _digestAuthenticationNonce = GCDWebServerComputeMD5Digest(@"%@", CFBridgingRelease(CFUUIDCreateString(kCFAllocatorDefault, uuid)));
-    CFRelease(uuid);
-  }
+    if (_CRLFData == nil) {
+        _CRLFData = [[NSData alloc] initWithBytes:"\r\n" length:2];
+        GWS_DCHECK(_CRLFData);
+    }
+    if (_CRLFCRLFData == nil) {
+        _CRLFCRLFData = [[NSData alloc] initWithBytes:"\r\n\r\n" length:4];
+        GWS_DCHECK(_CRLFCRLFData);
+    }
+    if (_continueData == nil) {
+        CFHTTPMessageRef message = CFHTTPMessageCreateResponse(kCFAllocatorDefault, 100, NULL, kCFHTTPVersion1_1);
+        _continueData = CFBridgingRelease(CFHTTPMessageCopySerializedMessage(message));
+        CFRelease(message);
+        GWS_DCHECK(_continueData);
+    }
+    if (_lastChunkData == nil) {
+        _lastChunkData = [[NSData alloc] initWithBytes:"0\r\n\r\n" length:5];
+    }
+    if (_digestAuthenticationNonce == nil) {
+        CFUUIDRef uuid = CFUUIDCreate(kCFAllocatorDefault);
+        _digestAuthenticationNonce = GCDWebServerComputeMD5Digest(@"%@", CFBridgingRelease(CFUUIDCreateString(kCFAllocatorDefault, uuid)));
+        CFRelease(uuid);
+    }
 }
 
 - (BOOL)isUsingIPv6 {
@@ -367,95 +422,102 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
 }
 
 - (void)_initializeResponseHeadersWithStatusCode:(NSInteger)statusCode {
-  _statusCode = statusCode;
-  _responseMessage = CFHTTPMessageCreateResponse(kCFAllocatorDefault, statusCode, NULL, kCFHTTPVersion1_1);
-  CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Connection"), CFSTR("Close"));
-  CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Server"), (__bridge CFStringRef)_server.serverName);
-  CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Date"), (__bridge CFStringRef)GCDWebServerFormatRFC822([NSDate date]));
+    _statusCode = statusCode;
+    _responseMessage = CFHTTPMessageCreateResponse(kCFAllocatorDefault, statusCode, NULL, kCFHTTPVersion1_1);
+    CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Connection"), CFSTR("Close"));
+    CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Server"), (__bridge CFStringRef)_server.serverName);
+    CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Date"), (__bridge CFStringRef)GCDWebServerFormatRFC822([NSDate date]));
 }
 
 - (void)_startProcessingRequest {
-  GWS_DCHECK(_responseMessage == NULL);
+    GWS_DCHECK(_responseMessage == NULL);
   
-  GCDWebServerResponse* preflightResponse = [self preflightRequest:_request];
-  if (preflightResponse) {
-    [self _finishProcessingRequest:preflightResponse];
-  } else {
-    [self processRequest:_request completion:^(GCDWebServerResponse* processResponse) {
-      [self _finishProcessingRequest:processResponse];
-    }];
-  }
+    GCDWebServerResponse* preflightResponse = [self preflightRequest:_request];
+  
+    if (preflightResponse) {
+        // 暂不考虑
+        [self _finishProcessingRequest:preflightResponse];
+    } else {
+        // 开始处理Request, 然后呢?
+        [self processRequest:_request completion:^(GCDWebServerResponse* processResponse) {
+            [self _finishProcessingRequest:processResponse];
+        }];
+    }
 }
 
 // http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html
 - (void)_finishProcessingRequest:(GCDWebServerResponse*)response {
-  GWS_DCHECK(_responseMessage == NULL);
-  BOOL hasBody = NO;
+    GWS_DCHECK(_responseMessage == NULL);
+    BOOL hasBody = NO;
   
-  if (response) {
-    response = [self overrideResponse:response forRequest:_request];
-  }
-  if (response) {
-    if ([response hasBody]) {
-      [response prepareForReading];
-      hasBody = !_virtualHEAD;
+    if (response) {
+        response = [self overrideResponse:response forRequest:_request];
     }
-    NSError* error = nil;
-    if (hasBody && ![response performOpen:&error]) {
-      GWS_LOG_ERROR(@"Failed opening response body for socket %i: %@", _socket, error);
-    } else {
-      _response = response;
-    }
-  }
-  
-  if (_response) {
-    [self _initializeResponseHeadersWithStatusCode:_response.statusCode];
-    if (_response.lastModifiedDate) {
-      CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Last-Modified"), (__bridge CFStringRef)GCDWebServerFormatRFC822(_response.lastModifiedDate));
-    }
-    if (_response.eTag) {
-      CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("ETag"), (__bridge CFStringRef)_response.eTag);
-    }
-    if ((_response.statusCode >= 200) && (_response.statusCode < 300)) {
-      if (_response.cacheControlMaxAge > 0) {
-        CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Cache-Control"), (__bridge CFStringRef)[NSString stringWithFormat:@"max-age=%i, public", (int)_response.cacheControlMaxAge]);
-      } else {
-        CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Cache-Control"), CFSTR("no-cache"));
-      }
-    }
-    if (_response.contentType != nil) {
-      CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Content-Type"), (__bridge CFStringRef)GCDWebServerNormalizeHeaderValue(_response.contentType));
-    }
-    if (_response.contentLength != NSUIntegerMax) {
-      CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Content-Length"), (__bridge CFStringRef)[NSString stringWithFormat:@"%lu", (unsigned long)_response.contentLength]);
-    }
-    if (_response.usesChunkedTransferEncoding) {
-      CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Transfer-Encoding"), CFSTR("chunked"));
-    }
-    [_response.additionalHeaders enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL* stop) {
-      CFHTTPMessageSetHeaderFieldValue(_responseMessage, (__bridge CFStringRef)key, (__bridge CFStringRef)obj);
-    }];
-    [self _writeHeadersWithCompletionBlock:^(BOOL success) {
-      
-      if (success) {
-        if (hasBody) {
-          [self _writeBodyWithCompletionBlock:^(BOOL successInner) {
-            
-            [_response performClose];  // TODO: There's nothing we can do on failure as headers have already been sent
-            
-          }];
+    if (response) {
+        if ([response hasBody]) {
+            [response prepareForReading];
+            hasBody = !_virtualHEAD;
         }
-      } else if (hasBody) {
-        [_response performClose];
-      }
-      
-    }];
-  } else {
-    [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
-  }
+        NSError* error = nil;
+        if (hasBody && ![response performOpen:&error]) {
+            GWS_LOG_ERROR(@"Failed opening response body for socket %i: %@", _socket, error);
+        } else {
+            _response = response;
+        }
+    }
   
+    if (_response) {
+        // 创建: _responseMessage
+        [self _initializeResponseHeadersWithStatusCode:_response.statusCode];
+        
+        if (_response.lastModifiedDate) {
+            CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Last-Modified"), (__bridge CFStringRef)GCDWebServerFormatRFC822(_response.lastModifiedDate));
+        }
+        if (_response.eTag) {
+            CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("ETag"), (__bridge CFStringRef)_response.eTag);
+        }
+        if ((_response.statusCode >= 200) && (_response.statusCode < 300)) {
+            if (_response.cacheControlMaxAge > 0) {
+                CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Cache-Control"), (__bridge CFStringRef)[NSString stringWithFormat:@"max-age=%i, public", (int)_response.cacheControlMaxAge]);
+            } else {
+                CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Cache-Control"), CFSTR("no-cache"));
+            }
+        }
+        if (_response.contentType != nil) {
+            CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Content-Type"), (__bridge CFStringRef)GCDWebServerNormalizeHeaderValue(_response.contentType));
+        }
+        if (_response.contentLength != NSUIntegerMax) {
+            CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Content-Length"), (__bridge CFStringRef)[NSString stringWithFormat:@"%lu", (unsigned long)_response.contentLength]);
+        }
+        if (_response.usesChunkedTransferEncoding) {
+            CFHTTPMessageSetHeaderFieldValue(_responseMessage, CFSTR("Transfer-Encoding"), CFSTR("chunked"));
+        }
+        [_response.additionalHeaders enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL* stop) {
+            CFHTTPMessageSetHeaderFieldValue(_responseMessage, (__bridge CFStringRef)key, (__bridge CFStringRef)obj);
+        }];
+        
+        // 将: _responseMessage 序列化，输出
+        [self _writeHeadersWithCompletionBlock:^(BOOL success) {
+      
+            if (success) {
+                // 写完Header, 写Body
+                if (hasBody) {
+                    [self _writeBodyWithCompletionBlock:^(BOOL successInner) {
+                        [_response performClose];  // TODO: There's nothing we can do on failure as headers have already been sent
+            
+                    }];
+                }
+            } else if (hasBody) {
+                [_response performClose];
+            }
+        }];
+    } else {
+        [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
+    }
 }
 
+
+// 读取body, 读取完毕之后: _startProcessingRequest
 - (void)_readBodyWithLength:(NSUInteger)length initialData:(NSData*)initialData {
   NSError* error = nil;
   if (![_request performOpen:&error]) {
@@ -520,104 +582,122 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
   }];
 }
 
+// 如何读取Headers呢?
 - (void)_readRequestHeaders {
-  _requestMessage = CFHTTPMessageCreateEmpty(kCFAllocatorDefault, true);
-  NSMutableData* headersData = [[NSMutableData alloc] initWithCapacity:kHeadersReadCapacity];
-  [self _readHeaders:headersData withCompletionBlock:^(NSData* extraData) {
+    // 创建一个空白的: HttpMessage
+    _requestMessage = CFHTTPMessageCreateEmpty(kCFAllocatorDefault, true);
     
-    if (extraData) {
-      NSString* requestMethod = CFBridgingRelease(CFHTTPMessageCopyRequestMethod(_requestMessage));  // Method verbs are case-sensitive and uppercase
-      if (_server.shouldAutomaticallyMapHEADToGET && [requestMethod isEqualToString:@"HEAD"]) {
-        requestMethod = @"GET";
-        _virtualHEAD = YES;
-      }
-      NSDictionary* requestHeaders = CFBridgingRelease(CFHTTPMessageCopyAllHeaderFields(_requestMessage));  // Header names are case-insensitive but CFHTTPMessageCopyAllHeaderFields() will standardize the common ones
-      NSURL* requestURL = CFBridgingRelease(CFHTTPMessageCopyRequestURL(_requestMessage));
-      if (requestURL) {
-        requestURL = [self rewriteRequestURL:requestURL withMethod:requestMethod headers:requestHeaders];
-        GWS_DCHECK(requestURL);
-      }
-      NSString* requestPath = requestURL ? GCDWebServerUnescapeURLString(CFBridgingRelease(CFURLCopyPath((CFURLRef)requestURL))) : nil;  // Don't use -[NSURL path] which strips the ending slash
-      NSString* queryString = requestURL ? CFBridgingRelease(CFURLCopyQueryString((CFURLRef)requestURL, NULL)) : nil;  // Don't use -[NSURL query] to make sure query is not unescaped;
-      NSDictionary* requestQuery = queryString ? GCDWebServerParseURLEncodedForm(queryString) : @{};
-      if (requestMethod && requestURL && requestHeaders && requestPath && requestQuery) {
-        for (_handler in _server.handlers) {
-          _request = _handler.matchBlock(requestMethod, requestURL, requestHeaders, requestPath, requestQuery);
-          if (_request) {
-            break;
-          }
-        }
-        if (_request) {
-          _request.localAddressData = self.localAddressData;
-          _request.remoteAddressData = self.remoteAddressData;
-          if ([_request hasBody]) {
-            [_request prepareForWriting];
-            if (_request.usesChunkedTransferEncoding || (extraData.length <= _request.contentLength)) {
-              NSString* expectHeader = [requestHeaders objectForKey:@"Expect"];
-              if (expectHeader) {
-                if ([expectHeader caseInsensitiveCompare:@"100-continue"] == NSOrderedSame) {  // TODO: Actually validate request before continuing
-                  [self _writeData:_continueData withCompletionBlock:^(BOOL success) {
-                    
-                    if (success) {
-                      if (_request.usesChunkedTransferEncoding) {
-                        [self _readChunkedBodyWithInitialData:extraData];
-                      } else {
-                        [self _readBodyWithLength:_request.contentLength initialData:extraData];
-                      }
-                    }
-                    
-                  }];
-                } else {
-                  GWS_LOG_ERROR(@"Unsupported 'Expect' / 'Content-Length' header combination on socket %i", _socket);
-                  [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_ExpectationFailed];
-                }
-              } else {
-                if (_request.usesChunkedTransferEncoding) {
-                  [self _readChunkedBodyWithInitialData:extraData];
-                } else {
-                  [self _readBodyWithLength:_request.contentLength initialData:extraData];
-                }
-              }
-            } else {
-              GWS_LOG_ERROR(@"Unexpected 'Content-Length' header value on socket %i", _socket);
-              [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_BadRequest];
+    // 读取数据
+    NSMutableData* headersData = [[NSMutableData alloc] initWithCapacity:kHeadersReadCapacity];
+    [self _readHeaders:headersData withCompletionBlock:^(NSData* extraData) {
+    
+        if (extraData) {
+            NSString* requestMethod = CFBridgingRelease(CFHTTPMessageCopyRequestMethod(_requestMessage));  // Method verbs are case-sensitive and uppercase
+            if (_server.shouldAutomaticallyMapHEADToGET && [requestMethod isEqualToString:@"HEAD"]) {
+                requestMethod = @"GET";
+                _virtualHEAD = YES;
             }
-          } else {
-            [self _startProcessingRequest];
-          }
+            NSDictionary* requestHeaders = CFBridgingRelease(CFHTTPMessageCopyAllHeaderFields(_requestMessage));  // Header names are case-insensitive but CFHTTPMessageCopyAllHeaderFields() will standardize the common ones
+            NSURL* requestURL = CFBridgingRelease(CFHTTPMessageCopyRequestURL(_requestMessage));
+            if (requestURL) {
+                requestURL = [self rewriteRequestURL:requestURL withMethod:requestMethod headers:requestHeaders];
+                GWS_DCHECK(requestURL);
+            }
+            NSString* requestPath = requestURL ? GCDWebServerUnescapeURLString(CFBridgingRelease(CFURLCopyPath((CFURLRef)requestURL))) : nil;
+            // Don't use -[NSURL         path] which strips the ending slash
+            NSString* queryString = requestURL ? CFBridgingRelease(CFURLCopyQueryString((CFURLRef)requestURL, NULL)) : nil;
+            // Don't use -[NSURL query] to make sure query is not unescaped;
+            NSDictionary* requestQuery = queryString ? GCDWebServerParseURLEncodedForm(queryString) : @{};
+            
+            // 解析出原始的Request的Headers
+            if (requestMethod && requestURL && requestHeaders && requestPath && requestQuery) {
+                // 开始进行Match, 获取一个有效的Request
+                for (_handler in _server.handlers) {
+                    _request = _handler.matchBlock(requestMethod, requestURL, requestHeaders, requestPath, requestQuery);
+                    if (_request) {
+                        break;
+                    }
+                }
+                if (_request) {
+                    _request.localAddressData = self.localAddressData;
+                    _request.remoteAddressData = self.remoteAddressData;
+                    if ([_request hasBody]) {
+                        [_request prepareForWriting];
+                        
+                        // 如果数据没有读取完毕
+                        if (_request.usesChunkedTransferEncoding || (extraData.length <= _request.contentLength)) {
+                            NSString* expectHeader = [requestHeaders objectForKey:@"Expect"];
+                            if (expectHeader) {
+                                if ([expectHeader caseInsensitiveCompare:@"100-continue"] == NSOrderedSame) {  // TODO: Actually validate request before continuing
+                                    // 写回写部分 continue 的指令
+                                    [self _writeData:_continueData withCompletionBlock:^(BOOL success) {
+                    
+                                        if (success) {
+                                            if (_request.usesChunkedTransferEncoding) {
+                                                [self _readChunkedBodyWithInitialData:extraData];
+                                            } else {
+                                                [self _readBodyWithLength:_request.contentLength initialData:extraData];
+                                            }
+                                        }
+                                    }];
+                                } else {
+                                    GWS_LOG_ERROR(@"Unsupported 'Expect' / 'Content-Length' header combination on socket %i", _socket);
+                                    [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_ExpectationFailed];
+                                }
+                            } else {
+                                if (_request.usesChunkedTransferEncoding) {
+                                    [self _readChunkedBodyWithInitialData:extraData];
+                                } else {
+                                    [self _readBodyWithLength:_request.contentLength initialData:extraData];
+                                }
+                            }
+                        } else {
+                            // 请求异常
+                            GWS_LOG_ERROR(@"Unexpected 'Content-Length' header value on socket %i", _socket);
+                            [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_BadRequest];
+                        }
+                    } else {
+                        // 如果没有body, 则直接开始处理Request
+                        [self _startProcessingRequest];
+                    }
+                } else {
+                    // 没有找到Request, 则创建一个默认的，并且abort
+                    _request = [[GCDWebServerRequest alloc] initWithMethod:requestMethod url:requestURL headers:requestHeaders path:requestPath query:requestQuery];
+                    GWS_DCHECK(_request);
+                    [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_MethodNotAllowed];
+                }
+            } else {
+                // http header解析错误
+                [self abortRequest:nil withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
+                GWS_DNOT_REACHED();
+            }
         } else {
-          _request = [[GCDWebServerRequest alloc] initWithMethod:requestMethod url:requestURL headers:requestHeaders path:requestPath query:requestQuery];
-          GWS_DCHECK(_request);
-          [self abortRequest:_request withStatusCode:kGCDWebServerHTTPStatusCode_MethodNotAllowed];
+            [self abortRequest:nil withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
         }
-      } else {
-        [self abortRequest:nil withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
-        GWS_DNOT_REACHED();
-      }
-    } else {
-      [self abortRequest:nil withStatusCode:kGCDWebServerHTTPStatusCode_InternalServerError];
-    }
-    
-  }];
+    }];
 }
 
-- (id)initWithServer:(GCDWebServer*)server localAddress:(NSData*)localAddress remoteAddress:(NSData*)remoteAddress socket:(CFSocketNativeHandle)socket {
-  if ((self = [super init])) {
-    _server = server;
-    _localAddress = localAddress;
-    _remoteAddress = remoteAddress;
-    _socket = socket;
-    GWS_LOG_DEBUG(@"Did open connection on socket %i", _socket);
+- (id)initWithServer:(GCDWebServer*)server
+        localAddress:(NSData*)localAddress
+       remoteAddress:(NSData*)remoteAddress
+              socket:(CFSocketNativeHandle)socket {
+    if ((self = [super init])) {
+        _server = server;
+        _localAddress = localAddress;
+        _remoteAddress = remoteAddress;
+        _socket = socket;
+        GWS_LOG_DEBUG(@"Did open connection on socket %i", _socket);
     
-    [_server willStartConnection:self];
+        // 通知Server, 新的Connection开始；Server可以更新统计信息
+        [_server willStartConnection:self];
     
-    if (![self open]) {
-      close(_socket);
-      return nil;
-    }
-    _opened = YES;
+        if (![self open]) {
+            close(_socket);
+            return nil;
+        }
+        _opened = YES;
     
-    [self _readRequestHeaders];
+        [self _readRequestHeaders];
   }
   return self;
 }
@@ -706,64 +786,77 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
 }
 
 // https://tools.ietf.org/html/rfc2617
+// 是否需要授权，
 - (GCDWebServerResponse*)preflightRequest:(GCDWebServerRequest*)request {
-  GWS_LOG_DEBUG(@"Connection on socket %i preflighting request \"%@ %@\" with %lu bytes body", _socket, _virtualHEAD ? @"HEAD" : _request.method, _request.path, (unsigned long)_bytesRead);
-  GCDWebServerResponse* response = nil;
-  if (_server.authenticationBasicAccounts) {
-    __block BOOL authenticated = NO;
-    NSString* authorizationHeader = [request.headers objectForKey:@"Authorization"];
-    if ([authorizationHeader hasPrefix:@"Basic "]) {
-      NSString* basicAccount = [authorizationHeader substringFromIndex:6];
-      [_server.authenticationBasicAccounts enumerateKeysAndObjectsUsingBlock:^(NSString* username, NSString* digest, BOOL* stop) {
-        if ([basicAccount isEqualToString:digest]) {
-          authenticated = YES;
-          *stop = YES;
+
+    GWS_LOG_DEBUG(@"Connection on socket %i preflighting request \"%@ %@\" with %lu bytes body", _socket, _virtualHEAD ? @"HEAD" : _request.method, _request.path, (unsigned long)_bytesRead);
+
+    GCDWebServerResponse* response = nil;
+    
+    // 授权: 暂不考虑
+    if (_server.authenticationBasicAccounts) {
+
+        
+        __block BOOL authenticated = NO;
+        NSString* authorizationHeader = [request.headers objectForKey:@"Authorization"];
+        if ([authorizationHeader hasPrefix:@"Basic "]) {
+            NSString* basicAccount = [authorizationHeader substringFromIndex:6];
+            [_server.authenticationBasicAccounts enumerateKeysAndObjectsUsingBlock:^(NSString* username, NSString* digest, BOOL* stop) {
+                if ([basicAccount isEqualToString:digest]) {
+                    authenticated = YES;
+                    *stop = YES;
+                }
+                }];
         }
-      }];
-    }
-    if (!authenticated) {
-      response = [GCDWebServerResponse responseWithStatusCode:kGCDWebServerHTTPStatusCode_Unauthorized];
-      [response setValue:[NSString stringWithFormat:@"Basic realm=\"%@\"", _server.authenticationRealm] forAdditionalHeader:@"WWW-Authenticate"];
-    }
-  } else if (_server.authenticationDigestAccounts) {
-    BOOL authenticated = NO;
-    BOOL isStaled = NO;
-    NSString* authorizationHeader = [request.headers objectForKey:@"Authorization"];
-    if ([authorizationHeader hasPrefix:@"Digest "]) {
-      NSString* realm = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"realm");
-      if ([realm isEqualToString:_server.authenticationRealm]) {
-        NSString* nonce = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"nonce");
-        if ([nonce isEqualToString:_digestAuthenticationNonce]) {
-          NSString* username = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"username");
-          NSString* uri = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"uri");
-          NSString* actualResponse = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"response");
-          NSString* ha1 = [_server.authenticationDigestAccounts objectForKey:username];
-          NSString* ha2 = GCDWebServerComputeMD5Digest(@"%@:%@", request.method, uri);  // We cannot use "request.path" as the query string is required
-          NSString* expectedResponse = GCDWebServerComputeMD5Digest(@"%@:%@:%@", ha1, _digestAuthenticationNonce, ha2);
-          if ([actualResponse isEqualToString:expectedResponse]) {
-            authenticated = YES;
-          }
-        } else if (nonce.length) {
-          isStaled = YES;
+        if (!authenticated) {
+            response = [GCDWebServerResponse responseWithStatusCode:kGCDWebServerHTTPStatusCode_Unauthorized];
+            [response setValue:[NSString stringWithFormat:@"Basic realm=\"%@\"", _server.authenticationRealm] forAdditionalHeader:@"WWW-Authenticate"];
         }
-      }
-    }
-    if (!authenticated) {
-      response = [GCDWebServerResponse responseWithStatusCode:kGCDWebServerHTTPStatusCode_Unauthorized];
-      [response setValue:[NSString stringWithFormat:@"Digest realm=\"%@\", nonce=\"%@\"%@", _server.authenticationRealm, _digestAuthenticationNonce, isStaled ? @", stale=TRUE" : @""] forAdditionalHeader:@"WWW-Authenticate"];  // TODO: Support Quality of Protection ("qop")
-    }
+    } else if (_server.authenticationDigestAccounts) {
+        BOOL authenticated = NO;
+        BOOL isStaled = NO;
+        NSString* authorizationHeader = [request.headers objectForKey:@"Authorization"];
+        if ([authorizationHeader hasPrefix:@"Digest "]) {
+            NSString* realm = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"realm");
+            if ([realm isEqualToString:_server.authenticationRealm]) {
+                NSString* nonce = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"nonce");
+                if ([nonce isEqualToString:_digestAuthenticationNonce]) {
+                    NSString* username = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"username");
+                    NSString* uri = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"uri");
+                    NSString* actualResponse = GCDWebServerExtractHeaderValueParameter(authorizationHeader, @"response");
+                    NSString* ha1 = [_server.authenticationDigestAccounts objectForKey:username];
+                    NSString* ha2 = GCDWebServerComputeMD5Digest(@"%@:%@", request.method, uri);  // We cannot use "request.path" as the query string is required
+                    NSString* expectedResponse = GCDWebServerComputeMD5Digest(@"%@:%@:%@", ha1, _digestAuthenticationNonce, ha2);
+                    if ([actualResponse isEqualToString:expectedResponse]) {
+                        authenticated = YES;
+                    }
+                } else if (nonce.length) {
+                    isStaled = YES;
+                }
+            }
+        }
+        if (!authenticated) {
+            response = [GCDWebServerResponse responseWithStatusCode:kGCDWebServerHTTPStatusCode_Unauthorized];
+            [response setValue:[NSString stringWithFormat:@"Digest realm=\"%@\", nonce=\"%@\"%@", _server.authenticationRealm, _digestAuthenticationNonce, isStaled ? @", stale=TRUE" : @""] forAdditionalHeader:@"WWW-Authenticate"];  // TODO: Support Quality of Protection ("qop")
+        }
   }
   return response;
 }
 
-- (void)processRequest:(GCDWebServerRequest*)request completion:(GCDWebServerCompletionBlock)completion {
-  GWS_LOG_DEBUG(@"Connection on socket %i processing request \"%@ %@\" with %lu bytes body", _socket, _virtualHEAD ? @"HEAD" : _request.method, _request.path, (unsigned long)_bytesRead);
-  @try {
-    _handler.asyncProcessBlock(request, [completion copy]);
-  }
-  @catch (NSException* exception) {
-    GWS_LOG_EXCEPTION(exception);
-  }
+//
+// 如何处理Request呢?
+// 处理完毕之后调用: completion, 直接完成
+//
+- (void)processRequest:(GCDWebServerRequest*)request
+            completion:(GCDWebServerCompletionBlock)completion {
+    GWS_LOG_DEBUG(@"Connection on socket %i processing request \"%@ %@\" with %lu bytes body", _socket, _virtualHEAD ? @"HEAD" : _request.method, _request.path, (unsigned long)_bytesRead);
+  
+    @try {
+        // 异步处理请求
+        _handler.asyncProcessBlock(request, [completion copy]);
+    } @catch (NSException* exception) {
+        GWS_LOG_EXCEPTION(exception);
+    }
 }
 
 // http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.25

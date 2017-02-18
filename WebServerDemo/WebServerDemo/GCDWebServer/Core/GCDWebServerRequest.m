@@ -278,12 +278,12 @@ NSString* const GCDWebServerRequestAttribute_RegexCaptures = @"GCDWebServerReque
 }
 
 - (void)prepareForWriting {
-  _writer = self;
-  if ([GCDWebServerNormalizeHeaderValue([self.headers objectForKey:@"Content-Encoding"]) isEqualToString:@"gzip"]) {
-    GCDWebServerGZipDecoder* decoder = [[GCDWebServerGZipDecoder alloc] initWithRequest:self writer:_writer];
-    [_decoders addObject:decoder];
-    _writer = decoder;
-  }
+    _writer = self;
+    if ([GCDWebServerNormalizeHeaderValue([self.headers objectForKey:@"Content-Encoding"]) isEqualToString:@"gzip"]) {
+        GCDWebServerGZipDecoder* decoder = [[GCDWebServerGZipDecoder alloc] initWithRequest:self writer:_writer];
+        [_decoders addObject:decoder];
+        _writer = decoder;
+    }
 }
 
 - (BOOL)performOpen:(NSError**)error {

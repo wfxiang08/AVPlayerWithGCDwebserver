@@ -9,6 +9,7 @@
 #import "VideoCacheManager.h"
 #import <CommonCrypto/CommonDigest.h>
 #import "NIDebuggingTools.h"
+#import "NSData+NSData_MD5.h"
 
 @implementation VideoCacheManager
 
@@ -123,6 +124,7 @@
         [[NSFileManager defaultManager] removeItemAtPath: newFilePath error: nil];
     }
     
+    NSLog(@"\n===> Signature: %@ %@\n", [[newFilePath dataUsingEncoding:NSUTF8StringEncoding] MD5HexDigest], [data MD5HexDigest]);
     NSError* error;
     BOOL ret = [data writeToFile:newFilePath options:NSDataWritingAtomic error:&error];
     

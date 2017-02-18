@@ -32,6 +32,7 @@
 		27CB889C1C5A06AE008BEF68 /* SampleVideo_640x360_1mb.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 27CB889B1C5A06AE008BEF68 /* SampleVideo_640x360_1mb.mp4 */; };
 		3590CEC51E5827BB0005DA62 /* NIDebuggingTools.m in Sources */ = {isa = PBXBuildFile; fileRef = 3590CEC41E5827BB0005DA62 /* NIDebuggingTools.m */; };
 		3590CEC81E58789D0005DA62 /* NSString+NSString_URLEndecode.m in Sources */ = {isa = PBXBuildFile; fileRef = 3590CEC71E58789D0005DA62 /* NSString+NSString_URLEndecode.m */; };
+		3590CECB1E588D310005DA62 /* NSData+NSData_MD5.m in Sources */ = {isa = PBXBuildFile; fileRef = 3590CECA1E588D310005DA62 /* NSData+NSData_MD5.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -83,6 +84,8 @@
 		3590CEC41E5827BB0005DA62 /* NIDebuggingTools.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NIDebuggingTools.m; sourceTree = "<group>"; };
 		3590CEC61E58789D0005DA62 /* NSString+NSString_URLEndecode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSString+NSString_URLEndecode.h"; sourceTree = "<group>"; };
 		3590CEC71E58789D0005DA62 /* NSString+NSString_URLEndecode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSString+NSString_URLEndecode.m"; sourceTree = "<group>"; };
+		3590CEC91E588D310005DA62 /* NSData+NSData_MD5.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSData+NSData_MD5.h"; sourceTree = "<group>"; };
+		3590CECA1E588D310005DA62 /* NSData+NSData_MD5.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "NSData+NSData_MD5.m"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -100,6 +103,8 @@
 		27CB88471C59C584008BEF68 = {
 			isa = PBXGroup;
 			children = (
+				3590CEC91E588D310005DA62 /* NSData+NSData_MD5.h */,
+				3590CECA1E588D310005DA62 /* NSData+NSData_MD5.m */,
 				3590CEC61E58789D0005DA62 /* NSString+NSString_URLEndecode.h */,
 				3590CEC71E58789D0005DA62 /* NSString+NSString_URLEndecode.m */,
 				27CB88521C59C584008BEF68 /* WebServerDemo */,
@@ -283,6 +288,7 @@
 				27CB88911C59C73F008BEF68 /* GCDWebServerMultiPartFormRequest.m in Sources */,
 				27CB88931C59C73F008BEF68 /* GCDWebServerDataResponse.m in Sources */,
 				27CB88941C59C73F008BEF68 /* GCDWebServerErrorResponse.m in Sources */,
+				3590CECB1E588D310005DA62 /* NSData+NSData_MD5.m in Sources */,
 				27CB888A1C59C73F008BEF68 /* GCDWebServer.m in Sources */,
 				27CB88951C59C73F008BEF68 /* GCDWebServerFileResponse.m in Sources */,
 				3590CEC81E58789D0005DA62 /* NSString+NSString_URLEndecode.m in Sources */,

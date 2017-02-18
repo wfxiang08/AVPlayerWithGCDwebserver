@@ -56,7 +56,8 @@
                                  @strongify(self)
                                  
                                  // 请求的段名
-                                 NSString* target = request.query[@"target"];
+                                 NSString* target = [request.path substringFromIndex:[@"/video/" length]];
+                                 
                                  
                                  NIDPRINT(@"RequestPath: %@", request.path);
                                  NIDPRINT(@"Target: %@", target);
@@ -80,13 +81,17 @@
                                      
                                      // 从本地读取数据，直接返回
                                      NSData *responseData = [NSData dataWithContentsOfFile:localHashPath];
-                                     GCDWebServerDataResponse* response = [GCDWebServerDataResponse responseWithData:responseData
-                                                                                                         contentType:contentType];
-            
-                                     completionBlock(response);
-            
-                                     //有缓存，返回数据，结束本次
-                                     return;
+                                     if (responseData != nil && responseData.length > 0) {
+                                         if ([fileName hasSuffix:@".m3u8"]) {
+                                             NSString* str = [[NSString alloc] initWithData:responseData encoding:NSUTF8StringEncoding];
+                                             str = nil;
+                                         }
+                                         GCDWebServerDataResponse* response = [GCDWebServerDataResponse responseWithData:responseData
+                                                                                                             contentType:contentType];
+                                         completionBlock(response);
+                                         //有缓存，返回数据，结束本次
+                                         return;
+                                     }
                                  }
                                 
         
@@ -165,7 +170,7 @@
 
 - (NSString *)getLocalURL:(NSString *)realUrlString {
     
-    NSString *urlStr = [NSString stringWithFormat:@"%@video?target=%@",
+    NSString *urlStr = [NSString stringWithFormat:@"%@video/%@",
                         self.localHttpHost, [realUrlString URLEncode]];
     
     return urlStr;
