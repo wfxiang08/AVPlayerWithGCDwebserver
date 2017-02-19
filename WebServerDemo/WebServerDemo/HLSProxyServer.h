@@ -7,7 +7,7 @@
 @interface HLSProxyServer : NSObject
 
 @property (nonatomic, readonly) NSString*_Nonnull localHttpHost;
-@property (nonatomic, strong) GCDWebServer *webServer;
+@property (nonatomic, strong) GCDWebServer *_Nonnull webServer;
 
 //
 // 获取

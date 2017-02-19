@@ -110,26 +110,23 @@
                                  videoRealUrl:(NSString *)videoRealUrl
                                      filePart:(NSString *)filePart {
 
-    // NSString *videoDir = [self getVideoCacheDirFromUrl:videoRealUrl];
     [self ensureVideoCacheDirForUrl:videoRealUrl];
     
-    // NIDASSERT([[NSFileManager defaultManager] fileExistsAtPath:videoDir]);
 
     NSString *newFilePath = [self getVideoFileCachePath:videoRealUrl filePart:filePart];
     
     
-    NIDPRINT(@"Save Cache To File: %@", newFilePath);
+    // NIDPRINT(@"Save Cache To File: %@", newFilePath);
     
     if ([[NSFileManager defaultManager] fileExistsAtPath: newFilePath]) {
         [[NSFileManager defaultManager] removeItemAtPath: newFilePath error: nil];
     }
     
-    NSLog(@"\n===> Signature: %@ %@\n", [[newFilePath dataUsingEncoding:NSUTF8StringEncoding] MD5HexDigest], [data MD5HexDigest]);
     NSError* error;
     BOOL ret = [data writeToFile:newFilePath options:NSDataWritingAtomic error:&error];
     
     if (!ret) {
-        NSLog(@"文件复制错误, %@", error);
+        NIDPRINT(@"文件复制错误, %@", error);
     }
     
     return ret;

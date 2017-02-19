@@ -31,6 +31,7 @@
 		27CB88981C59C7E0008BEF68 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 27CB88971C59C7E0008BEF68 /* libz.tbd */; };
 		27CB889C1C5A06AE008BEF68 /* SampleVideo_640x360_1mb.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 27CB889B1C5A06AE008BEF68 /* SampleVideo_640x360_1mb.mp4 */; };
 		350B2A621E59806600BC2BC2 /* HLSProxyResponse.m in Sources */ = {isa = PBXBuildFile; fileRef = 350B2A611E59806600BC2BC2 /* HLSProxyResponse.m */; };
+		350B2A661E59B0BC00BC2BC2 /* HSLVideoCache.m in Sources */ = {isa = PBXBuildFile; fileRef = 350B2A651E59B0BC00BC2BC2 /* HSLVideoCache.m */; };
 		3590CEC51E5827BB0005DA62 /* NIDebuggingTools.m in Sources */ = {isa = PBXBuildFile; fileRef = 3590CEC41E5827BB0005DA62 /* NIDebuggingTools.m */; };
 		3590CEC81E58789D0005DA62 /* NSString+NSString_URLEndecode.m in Sources */ = {isa = PBXBuildFile; fileRef = 3590CEC71E58789D0005DA62 /* NSString+NSString_URLEndecode.m */; };
 		3590CECB1E588D310005DA62 /* NSData+NSData_MD5.m in Sources */ = {isa = PBXBuildFile; fileRef = 3590CECA1E588D310005DA62 /* NSData+NSData_MD5.m */; };
@@ -83,6 +84,8 @@
 		27CB889B1C5A06AE008BEF68 /* SampleVideo_640x360_1mb.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = SampleVideo_640x360_1mb.mp4; sourceTree = "<group>"; };
 		350B2A601E59806600BC2BC2 /* HLSProxyResponse.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HLSProxyResponse.h; sourceTree = "<group>"; };
 		350B2A611E59806600BC2BC2 /* HLSProxyResponse.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HLSProxyResponse.m; sourceTree = "<group>"; };
+		350B2A641E59B0BC00BC2BC2 /* HSLVideoCache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HSLVideoCache.h; sourceTree = "<group>"; };
+		350B2A651E59B0BC00BC2BC2 /* HSLVideoCache.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HSLVideoCache.m; sourceTree = "<group>"; };
 		3590CEC31E5827BB0005DA62 /* NIDebuggingTools.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NIDebuggingTools.h; sourceTree = "<group>"; };
 		3590CEC41E5827BB0005DA62 /* NIDebuggingTools.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NIDebuggingTools.m; sourceTree = "<group>"; };
 		3590CEC61E58789D0005DA62 /* NSString+NSString_URLEndecode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSString+NSString_URLEndecode.h"; sourceTree = "<group>"; };
@@ -142,10 +145,12 @@
 				27CB88531C59C584008BEF68 /* Supporting Files */,
 				276BF84C1C75A6AD00CE1FD2 /* HLSProxyServer.h */,
 				276BF84D1C75A6AD00CE1FD2 /* HLSProxyServer.m */,
-				276BF84F1C75B3FD00CE1FD2 /* VideoCacheManager.h */,
-				276BF8501C75B3FD00CE1FD2 /* VideoCacheManager.m */,
 				350B2A601E59806600BC2BC2 /* HLSProxyResponse.h */,
 				350B2A611E59806600BC2BC2 /* HLSProxyResponse.m */,
+				276BF84F1C75B3FD00CE1FD2 /* VideoCacheManager.h */,
+				276BF8501C75B3FD00CE1FD2 /* VideoCacheManager.m */,
+				350B2A641E59B0BC00BC2BC2 /* HSLVideoCache.h */,
+				350B2A651E59B0BC00BC2BC2 /* HSLVideoCache.m */,
 			);
 			path = WebServerDemo;
 			sourceTree = "<group>";
@@ -303,6 +308,7 @@
 				276BF8511C75B3FD00CE1FD2 /* VideoCacheManager.m in Sources */,
 				27CB888E1C59C73F008BEF68 /* GCDWebServerResponse.m in Sources */,
 				27CB888B1C59C73F008BEF68 /* GCDWebServerConnection.m in Sources */,
+				350B2A661E59B0BC00BC2BC2 /* HSLVideoCache.m in Sources */,
 				3590CEC51E5827BB0005DA62 /* NIDebuggingTools.m in Sources */,
 				27CB88581C59C584008BEF68 /* AppDelegate.m in Sources */,
 				27CB88921C59C73F008BEF68 /* GCDWebServerURLEncodedFormRequest.m in Sources */,

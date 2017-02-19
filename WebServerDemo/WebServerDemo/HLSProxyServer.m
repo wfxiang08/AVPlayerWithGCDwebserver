@@ -104,32 +104,10 @@
     
     NIDPRINT(@"VideoUrl: %@, ContentType: %@, fileName: %@", videoURL, contentType, fileName);
     
-    //判断该段数据是否已经缓存了
-    if([VideoCacheManager videoFilePartIsInCache:videoURL filePart:fileName]) {
-        
-        //已经缓存了，直接返回本地数据
-        NSString *localHashPath = [VideoCacheManager getVideoFileCachePath:videoURL
-                                                                  filePart:fileName];
-        
-        
-        NIDPRINT(@"RequestPath: %@, CurrentThread: %@", localHashPath, [NSThread currentThread]);
-        
-        // 从本地读取数据，直接返回
-        NSData *responseData = [NSData dataWithContentsOfFile:localHashPath];
-        if (responseData != nil && responseData.length > 0) {
-            if ([fileName hasSuffix:@".m3u8"]) {
-                NSString* str = [[NSString alloc] initWithData:responseData encoding:NSUTF8StringEncoding];
-                str = nil;
-            }
-            GCDWebServerDataResponse* response = [GCDWebServerDataResponse responseWithData:responseData
-                                                                                contentType:contentType];
-            completionBlock(response);
-            //有缓存，返回数据，结束本次
-            return;
-        }
-    }
     
-    HLSProxyResponse* response = [HLSProxyResponse responseWithContentType:contentType targetUrl:target];
+    HLSProxyResponse* response = [[HLSProxyResponse alloc] initHLSResponseWithContentType:contentType
+                                                                                targetUrl:target
+                                                                               cacheTsNum:3];
     
     // 这个应该算是立马返回了
     completionBlock(response);
