@@ -20,11 +20,25 @@
     
 }
 
-- (instancetype)initHLSResponseWithContentType:(NSString*)contentType
-                                     targetUrl:(NSString*)targetUrl
-                                    cacheTsNum:(int)tsNum {
+//
+// 返回ContentType:
+//   m3u8 --> application/x-mpegURL
+//   ts   --> video/MP2T
+// 暂不考虑其他的格式的文件
+//
++ (NSString *)getContentType:(NSString *)target {
+    
+    if ([target rangeOfString:@".ts"].length > 0) {
+        return @"video/MP2T";
+    } else {
+        return @"application/x-mpegURL";
+    }
+}
+
+- (instancetype)initWithTargetUrl:(NSString*)targetUrl
+                       cacheTsNum:(int)tsNum {
     if (self  = [super init]) {
-        self.contentType = contentType; // 这个很重要
+        self.contentType = [HLSProxyResponse getContentType: targetUrl]; // 这个很重要
         self.done = NO;
         self.targetUrl = targetUrl;
         
@@ -32,6 +46,7 @@
     }
     return self;
 }
+
 
 - (void) detectCache {
 //    //判断该段数据是否已经缓存了

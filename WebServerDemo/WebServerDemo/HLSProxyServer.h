@@ -15,11 +15,6 @@
 + (NSString*_Nonnull) getVideoPath:(NSString*_Nonnull)m3u8FileUrl;
 
 //
-// 获取 m3u8 文件，或 ts文件的ContentType
-//
-+ (NSString *_Nonnull)getContentType:(NSString *_Nonnull)target;
-
-//
 // 获取HLSProxyServer单例
 //
 + (nonnull instancetype)shareInstance;
