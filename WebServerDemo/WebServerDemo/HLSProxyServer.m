@@ -12,9 +12,6 @@
 
 
 @interface HLSProxyServer ()
-
-@property (nonatomic, strong) GCDWebServer *webServer;
-
 @end
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,44 +49,42 @@
 - (instancetype)init {
     if (self = [super init]) {
         
-        // 初始化WebServer
-        [self initWebServer];
+        // 初始化本地web服务器
+        self.webServer = [[GCDWebServer alloc] init];
+        
+        // 添加一个get响应
+        // 如何代理请求呢?
+        // 局限于：m3u8
+        // 重点: 设置webServer的callback
+        @weakify(self)
+        [self.webServer addDefaultHandlerForMethod:@"GET"
+                                      requestClass:[GCDWebServerRequest class]
+                                 asyncProcessBlock:^(GCDWebServerRequest *request, GCDWebServerCompletionBlock completionBlock) {
+                                     // 当前的handler该如何处理呢?
+                                     // 迅速处理的request, 得到一个Response, 并且回调: completionBlock
+                                     //                         Response本身不需要数据全部下载完毕，在completionBlock中会边读取，一边等待
+                                     @strongify(self)
+                                     [self hlsRequestHandler:request callback:completionBlock];
+                                 }];
+        
+        
+        BOOL started = [self.webServer start];
+        if (!started) {
+            NIDPRINT(@"WebServer Started Failed");
+        }
+        
+        
+        //设置服务器的本地url
+        _localHttpHost = self.webServer.serverURL.relativeString;
     }
     return self;
 }
 
-#pragma mark 初始化本地web服务器
-- (void)initWebServer {
+- (void) dealloc {
     NIDPRINTMETHODNAME();
-
-    // 初始化本地web服务器
-    self.webServer = [[GCDWebServer alloc] init];
-    
-    // 添加一个get响应
-    // 如何代理请求呢?
-    // 局限于：m3u8
-    // 重点: 设置webServer的callback
-    @weakify(self)
-    [self.webServer addDefaultHandlerForMethod:@"GET"
-                                  requestClass:[GCDWebServerRequest class]
-                             asyncProcessBlock:^(GCDWebServerRequest *request, GCDWebServerCompletionBlock completionBlock) {
-                                 // 当前的handler该如何处理呢?
-                                 // 迅速处理的request, 得到一个Response, 并且回调: completionBlock
-                                 //                         Response本身不需要数据全部下载完毕，在completionBlock中会边读取，一边等待
-                                 @strongify(self)
-                                 [self hlsRequestHandler:request callback:completionBlock];
-                            }];
-                            
-    
-    BOOL started = [self.webServer start];
-    if (!started) {
-        NIDPRINT(@"WebServer Started Failed");
-    }
-        
-    
-    //设置服务器的本地url
-    _localHttpHost = self.webServer.serverURL.relativeString;
 }
+
+
 
 - (void) hlsRequestHandler:(GCDWebServerRequest *)request
                   callback:(GCDWebServerCompletionBlock) completionBlock {
