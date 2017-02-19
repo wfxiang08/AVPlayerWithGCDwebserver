@@ -8,10 +8,14 @@
 #import "HLSProxyServer.h"
 
 #import "NIDebuggingTools.h"
-#import "VideoCacheManager.h"
+
+// 缓存逻辑
+#import "HSLVideoCache.h"
+#import "NSString+NSString_URLEndecode.h"
 
 @interface HLSProxyResponse()
 @property (nonatomic, copy) NSString* targetUrl;
+@property (nonatomic, strong) NSString* cacheKey;
 @property (nonatomic, assign) BOOL done;
 @end
 
@@ -42,6 +46,12 @@
         self.done = NO;
         self.targetUrl = targetUrl;
         
+        self.keyFilter = ^(NSURL * _Nullable url){
+            return SMDefaultCacheKeyFilter(url);
+        };
+        
+        self.cacheKey = self.keyFilter([NSURL URLWithString:self.targetUrl]);
+        
         [self detectCache];
     }
     return self;
@@ -49,30 +59,18 @@
 
 
 - (void) detectCache {
-//    //判断该段数据是否已经缓存了
-//    if([VideoCacheManager videoFilePartIsInCache:videoURL filePart:fileName]) {
-//        
-//        //已经缓存了，直接返回本地数据
-//        NSString *localHashPath = [VideoCacheManager getVideoFileCachePath:videoURL
-//                                                                  filePart:fileName];
-//        
-//        
-//        NIDPRINT(@"RequestPath: %@, CurrentThread: %@", localHashPath, [NSThread currentThread]);
-//        
-//        // 从本地读取数据，直接返回
-//        NSData *responseData = [NSData dataWithContentsOfFile:localHashPath];
-//        if (responseData != nil && responseData.length > 0) {
-//            if ([fileName hasSuffix:@".m3u8"]) {
-//                NSString* str = [[NSString alloc] initWithData:responseData encoding:NSUTF8StringEncoding];
-//                str = nil;
-//            }
-//            GCDWebServerDataResponse* response = [GCDWebServerDataResponse responseWithData:responseData
-//                                                                                contentType:contentType];
-//            completionBlock(response);
-//            //有缓存，返回数据，结束本次
-//            return;
-//        }
-//    }
+    _data = [[HSLVideoCache sharedHlsCache] videoForKey: self.cacheKey];
+    if (_data.length > 0) {
+        self.contentLength = _data.length;
+        
+        if ([self.targetUrl hasSuffix:@".m3u8"]) {
+            NSString* str = [[NSString alloc] initWithData:_data encoding:NSUTF8StringEncoding];
+            str = nil;
+        }
+    } else {
+        _data = nil;
+    }
+    
 }
 
 - (void)onClosed:(BOOL)succeed {
@@ -81,7 +79,9 @@
 
 - (BOOL)respondsToSelector:(SEL)aSelector {
     if (aSelector == @selector(asyncReadDataWithCompletion:)) {
-        return _data == nil;
+        BOOL ok = _data.length == 0;
+        // NIDPRINT(@"asyncReadDataWithCompletion ok: %d", ok);
+        return ok;
     } else {
         return [super respondsToSelector:aSelector];
     }
@@ -89,9 +89,11 @@
 
 
 - (NSData*)readData:(NSError**)error {
+    NIDASSERT(_data.length > 0);
+    NIDPRINT(@"==> Cache Hit: %@", _targetUrl);
     NSData* data;
     if (_done) {
-        data = [NSData data];
+        data = [NSData data]; // 通过返回长度为0的数据表示数据处理完毕
     } else {
         data = _data;
         _done = YES;
@@ -101,6 +103,9 @@
 
 
 - (void)asyncReadDataWithCompletion:(GCDWebServerBodyReaderCompletionBlock)completionBlockInner {
+    
+    NIDASSERT(_data.length == 0);
+    
     // 这里很关键: 当前的block应该有状态
     // 例如如果底层和网络结合起来，每次回调都应该能从网络新读取一些数据；然后再回调 completionBlockInner
     // 什么时候回调结束呢?
@@ -112,24 +117,20 @@
         _done = YES;
     }
     
-    NSString* videoURL = [HLSProxyServer getVideoPath: _targetUrl];
-    NSString* fileName = _targetUrl.lastPathComponent;
+
     
-    NIDPRINT(@"Target: %@", _targetUrl);
-    NIDPRINT(@"FilePart: %@, VideoPart: %@", fileName, videoURL);
+    NSData* data = [[HSLVideoCache sharedHlsCache] videoForKey: self.cacheKey];
     
-    NSData* data = nil;
-    NSString* cacheUrl = [VideoCacheManager getVideoFileCachePath:videoURL
-                                                         filePart:fileName];
-    if ([[NSFileManager defaultManager] fileExistsAtPath:cacheUrl]) {
-        data = [NSData dataWithContentsOfFile:cacheUrl];
-    }
+    NIDPRINT(@"Target: %@, CacheKey: %@", _targetUrl, self.cacheKey);
     
-    if (!data || data.length == 0) {
+    // 如果缓存没有数据，如何处理呢?
+    if (data.length == 0) {
         
-        NIDPRINT(@"VideoURL: %@", _targetUrl);
         
-        data = [NSData dataWithContentsOfURL:[NSURL URLWithString:_targetUrl]];
+        NSURL* url = [NSURL URLWithString:_targetUrl];
+        NIDPRINT(@"VideoURL: %@", url);
+        
+        data = [NSData dataWithContentsOfURL:url];
         
         if ([_targetUrl hasSuffix:@".m3u8"]) {
             // 如果是m3u8文件，则特殊处理
@@ -151,10 +152,8 @@
         if (!(data != nil && data.length > 0)) {
             int k = 0;
         }
-        [VideoCacheManager copyCacheFileToCacheDirectoryWithData:data
-                                                    videoRealUrl:videoURL
-                                                        filePart:fileName];
         
+        [[HSLVideoCache sharedHlsCache] storeVideoData: data forKey:self.cacheKey];        
     }
     
     // 数据处理完毕

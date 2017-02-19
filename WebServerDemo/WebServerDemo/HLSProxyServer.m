@@ -3,15 +3,10 @@
 #import "HLSProxyResponse.h"
 
 #import "GCDWebServer.h"
-#import "GCDWebServerPrivate.h"
+// #import "GCDWebServerPrivate.h"
 
-// 缓存逻辑
-#import "HSLVideoCache.h"
-
-#import "VideoCacheManager.h"
 #import "NIDebuggingTools.h"
 #import "NSString+NSString_URLEndecode.h"
-
 
 
 @interface HLSProxyServer ()

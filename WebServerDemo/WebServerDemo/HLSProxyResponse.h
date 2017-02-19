@@ -6,8 +6,11 @@
 
 #import <Foundation/Foundation.h>
 #import "GCDWebServerResponse.h"
+#import "CacheKeyFilter.h"
 
 @interface HLSProxyResponse : GCDWebServerResponse
+
+@property (nonatomic, copy) HLSCacheKeyFilterBlock keyFilter;
 
 // tsNum 每个video缓存的ts的个数，如果为-1, 则表示全部缓存；至少 > 3
 - (instancetype)initWithTargetUrl:(NSString*)targetUrl
