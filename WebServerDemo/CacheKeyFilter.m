@@ -24,9 +24,25 @@ NSString * cachedFileNameForKey(NSString *key) {
 }
 
 NSString * _Nullable SMDefaultCacheKeyFilter(NSURL * _Nullable url) {
-    NSString* result = url.path;
+    // 删除“#”后面的部分，删除"?"后面的部分
+    NSString* result = [url absoluteString];
+    result = [result componentsSeparatedByString:@"#"][0];
+    result = [result componentsSeparatedByString:@"?"][0];
     
-    NIDPRINT(@"UrlPath: %@", result);
+    
+    result = [result stringByReplacingOccurrencesOfString:@"/hls-high/" withString:@"/hls/"];
+    result = [result stringByReplacingOccurrencesOfString:@"/hls-low/"  withString:@"/hls/"];
+
+    if ([result hasSuffix:@".ts"]) {
+        // 老版本m3u8文件不做缓存优化，因为playlist文件内容不一样
+        // hls-360p/hls-360p00002.ts --> /hlsold/00002.ts
+        result = [result stringByReplacingOccurrencesOfString:@"hls-360p" withString:@"hlsold"];
+        result = [result stringByReplacingOccurrencesOfString:@"hls-480p" withString:@"hlsold"];
+        result = [result stringByReplacingOccurrencesOfString:@"hls-720p" withString:@"hlsold"];
+    }
+    
+    
+    NIDPRINT(@"Url Hash: %@ --> %@", url, result);
     
     // TODO: 增加更多的限制
     return cachedFileNameForKey(result);

@@ -58,7 +58,7 @@
         });
         
 
-        // Subscribe to app events
+        // 每次关闭时，或者进入后台之后做清理工作
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(deleteOldFiles)
                                                      name:UIApplicationWillTerminateNotification
