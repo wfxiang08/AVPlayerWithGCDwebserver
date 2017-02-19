@@ -26,6 +26,17 @@
     return instance;
 }
 
+#define kVideoPath @"/video/"
+#define kTarget @"target"
+
+- (NSString *)getLocalURL:(NSString *)realUrlString {
+    
+    NSString *urlStr = [NSString stringWithFormat:@"%@video/?target=%@",
+                        self.localHttpHost, [realUrlString URLEncode]];
+    
+    return urlStr;
+}
+
 
 //
 // 初始化HLSProxyServer
@@ -40,23 +51,16 @@
         // 如何代理请求呢?
         // 局限于：m3u8
         // 重点: 设置webServer的callback
-        [self.webServer addDefaultHandlerForMethod:@"GET"
-                                      requestClass:[GCDWebServerRequest class]
-                                 asyncProcessBlock:^(GCDWebServerRequest *request, GCDWebServerCompletionBlock completionBlock) {
-                                     // 当前的handler该如何处理呢?
-                                     // 迅速处理的request, 得到一个Response, 并且回调: completionBlock
-                                     //                         Response本身不需要数据全部下载完毕，在completionBlock中会边读取，一边等待
-                                     // 请求的段名
-                                     NSString* target = [request.path substringFromIndex:[@"/video/" length]];
-                                     
-                                     
-                                     NIDPRINT(@"Target: %@", target);
-                                     HLSProxyResponse* response = [[HLSProxyResponse alloc] initWithTargetUrl:target
-                                                                                                   cacheTsNum:3];
-                                     
-                                     // 这个应该算是立马返回了
-                                     completionBlock(response);
-                                 }];
+        
+        [self.webServer addHandlerForMethod:@"GET"
+                                       path:kVideoPath
+                               requestClass:[GCDWebServerRequest class]
+                          asyncProcessBlock:^(GCDWebServerRequest *request, GCDWebServerCompletionBlock completionBlock) {
+                                 NSString* target = request.query[kTarget];
+                                 HLSProxyResponse* response = [[HLSProxyResponse alloc] initWithTargetUrl:target
+                                                                                               cacheTsNum:3];
+                                 completionBlock(response);
+                             }];
         
         
         BOOL started = [self.webServer start];
@@ -74,25 +78,6 @@
 - (void) dealloc {
     NIDPRINTMETHODNAME();
 }
-
-
-+ (NSString*) getVideoPath:(NSString*)m3u8FileUrl {
-
-    NSRange range = [m3u8FileUrl rangeOfString:@"/" options:NSBackwardsSearch];
-    NSString* result = [m3u8FileUrl substringToIndex: range.location];
-    
-    NIDPRINT(@"VideoPath: %@ <-- %@", result, m3u8FileUrl);
-    return result;
-}
-
-- (NSString *)getLocalURL:(NSString *)realUrlString {
-    
-    NSString *urlStr = [NSString stringWithFormat:@"%@video/%@",
-                        self.localHttpHost, [realUrlString URLEncode]];
-    
-    return urlStr;
-}
-
 
 - (void)stopWebSever {
     [self.webServer stop];
