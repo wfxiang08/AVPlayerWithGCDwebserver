@@ -92,7 +92,8 @@
     CC_MD5(str, (CC_LONG)strlen(str), r);
     NSString *filename = [NSString stringWithFormat:@"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%@",
                           r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10],
-                          r[11], r[12], r[13], r[14], r[15], [key.pathExtension isEqualToString:@""] ? @"" : [NSString stringWithFormat:@".%@", key.pathExtension]];
+                          r[11], r[12], r[13], r[14], r[15],
+                          [key.pathExtension isEqualToString:@""] ? @"" : [NSString stringWithFormat:@".%@", key.pathExtension]];
     
     return filename;
 }
@@ -145,7 +146,10 @@
     [self checkIfQueueIsIOQueue];
     
     if (![_fileManager fileExistsAtPath:_diskCachePath]) {
-        [_fileManager createDirectoryAtPath:_diskCachePath withIntermediateDirectories:YES attributes:nil error:NULL];
+        [_fileManager createDirectoryAtPath:_diskCachePath
+                withIntermediateDirectories:YES
+                                 attributes:nil
+                                      error:NULL];
     }
     
     // get cache Path for image key
@@ -153,12 +157,11 @@
     // key --> cachePath
     //
     NSString *cachePathForKey = [self defaultCachePathForKey:key];
-    // transform to NSUrl
-    NSURL *fileURL = [NSURL fileURLWithPath:cachePathForKey];
-    
+
     [_fileManager createFileAtPath:cachePathForKey contents:videoData attributes:nil];
     
     // 放在Cache目录下，应该不会被自动备份
+    // NSURL *fileURL = [NSURL fileURLWithPath:cachePathForKey];
     // [fileURL setResourceValue:@YES forKey:NSURLIsExcludedFromBackupKey error:nil];
 }
 
@@ -176,7 +179,7 @@
 
 // 异步检查是否存在指定的Key
 - (void)videoExistsWithKey:(nullable NSString *)key
-                completion:(nullable SDWebImageCheckCacheCompletionBlock)completionBlock {
+                completion:(nullable HLSCheckCacheCompletionBlock)completionBlock {
     
     dispatch_async(_ioQueue, ^{
         BOOL exists = [_fileManager fileExistsAtPath:[self defaultCachePathForKey:key]];
@@ -191,7 +194,7 @@
 }
 
 - (nullable NSOperation *)queryCacheOperationForKey:(nullable NSString *)key
-                                               done:(nullable SDCacheQueryCompletedBlock)doneBlock {
+                                               done:(nullable HLSCacheQueryCompletedBlock)doneBlock {
     // 没有key, 或者没有回调函数都直接返回
     if (!key || !doneBlock) {
         if (doneBlock) {
@@ -315,7 +318,8 @@
         NSMutableArray<NSURL *> *urlsToDelete = [[NSMutableArray alloc] init];
         for (NSURL *fileURL in fileEnumerator) {
             NSError *error;
-            NSDictionary<NSString *, id> *resourceValues = [fileURL resourceValuesForKeys:resourceKeys error:&error];
+            NSDictionary<NSString *, id> *resourceValues =
+                [fileURL resourceValuesForKeys:resourceKeys error:&error];
             
             // Skip directories and errors.
             if (error || !resourceValues || [resourceValues[NSURLIsDirectoryKey] boolValue]) {
@@ -348,10 +352,12 @@
             const NSUInteger desiredCacheSize = _maxCacheSize / 2;
             
             // 按照修改时间的升序排列
-            NSArray<NSURL *> *sortedFiles = [cacheFiles keysSortedByValueWithOptions:NSSortConcurrent
-                                                                     usingComparator:^NSComparisonResult(id obj1, id obj2) {
-                                                                         return [obj1[NSURLContentModificationDateKey] compare:obj2[NSURLContentModificationDateKey]];
-                                                                     }];
+            NSArray<NSURL *> *sortedFiles =
+                [cacheFiles keysSortedByValueWithOptions:NSSortConcurrent
+                                         usingComparator:^NSComparisonResult(id obj1, id obj2) {
+                                             return [obj1[NSURLContentModificationDateKey]
+                                                     compare:obj2[NSURLContentModificationDateKey]];
+                                         }];
             
             // Delete files until we fall below our desired cache size.
             for (NSURL *fileURL in sortedFiles) {
@@ -403,7 +409,8 @@
         NSDirectoryEnumerator *fileEnumerator = [_fileManager enumeratorAtPath:self.diskCachePath];
         for (NSString *fileName in fileEnumerator) {
             NSString *filePath = [self.diskCachePath stringByAppendingPathComponent:fileName];
-            NSDictionary<NSString *, id> *attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:filePath error:nil];
+            NSDictionary<NSString *, id> *attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:filePath
+                                                                                                   error:nil];
             size += [attrs fileSize];
         }
     });
@@ -419,7 +426,7 @@
     return count;
 }
 
-- (void)calculateSizeWithCompletionBlock:(nullable SDWebImageCalculateSizeBlock)completionBlock {
+- (void)calculateSizeWithCompletionBlock:(nullable HLSCalculateSizeBlock)completionBlock {
     NSURL *diskCacheURL = [NSURL fileURLWithPath:self.diskCachePath isDirectory:YES];
     
     dispatch_async(self.ioQueue, ^{

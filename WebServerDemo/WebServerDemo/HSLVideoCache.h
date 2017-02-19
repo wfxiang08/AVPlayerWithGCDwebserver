@@ -1,10 +1,10 @@
 #import <Foundation/Foundation.h>
 
-typedef void(^SDCacheQueryCompletedBlock)(NSData * _Nullable data);
+typedef void(^HLSCacheQueryCompletedBlock)(NSData * _Nullable data);
 
-typedef void(^SDWebImageCheckCacheCompletionBlock)(BOOL isInCache);
+typedef void(^HLSCheckCacheCompletionBlock)(BOOL isInCache);
 
-typedef void(^SDWebImageCalculateSizeBlock)(NSUInteger fileCount, NSUInteger totalSize);
+typedef void(^HLSCalculateSizeBlock)(NSUInteger fileCount, NSUInteger totalSize);
 
 typedef void(^HLSNoParamsBlock)();
 
@@ -42,9 +42,9 @@ typedef void(^HLSNoParamsBlock)();
 
 // 异步检查是否存在指定的Key
 - (void)videoExistsWithKey:(nullable NSString *)key
-                completion:(nullable SDWebImageCheckCacheCompletionBlock)completionBlock;
+                completion:(nullable HLSCheckCacheCompletionBlock)completionBlock;
 - (nullable NSOperation *)queryCacheOperationForKey:(nullable NSString *)key
-                                               done:(nullable SDCacheQueryCompletedBlock)doneBlock;
+                                               done:(nullable HLSCacheQueryCompletedBlock)doneBlock;
 //
 // 返回给定key在本地的Cache
 //
@@ -61,5 +61,5 @@ typedef void(^HLSNoParamsBlock)();
 // 缓存统计相关的数据
 - (NSUInteger)getSize;
 - (NSUInteger)getDiskCount;
-- (void)calculateSizeWithCompletionBlock:(nullable SDWebImageCalculateSizeBlock)completionBlock;
+- (void)calculateSizeWithCompletionBlock:(nullable HLSCalculateSizeBlock)completionBlock;
 @end
