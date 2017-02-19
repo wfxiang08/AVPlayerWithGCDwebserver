@@ -23,7 +23,8 @@
 + (nonnull instancetype)shareInstance;
 
 
-- (NSString*_Nonnull)getLocalURL:(NSString *_Nonnull)targetUrl;
+- (NSString *)getLocalURL:(NSString *)realUrlString withHost: (BOOL)withHost;
+
 - (void)stopWebSever;
 
 @end

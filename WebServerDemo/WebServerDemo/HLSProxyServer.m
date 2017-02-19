@@ -26,15 +26,17 @@
     return instance;
 }
 
+// 视频的URL格式: http://localhost/video/?target=xxxxx
 #define kVideoPath @"/video/"
 #define kTarget @"target"
 
-- (NSString *)getLocalURL:(NSString *)realUrlString {
-    
-    NSString *urlStr = [NSString stringWithFormat:@"%@video/?target=%@",
+- (NSString *)getLocalURL:(NSString *)realUrlString withHost: (BOOL)withHost {
+    if (withHost) {
+        return [NSString stringWithFormat:@"%@video/?target=%@",
                         self.localHttpHost, [realUrlString URLEncode]];
-    
-    return urlStr;
+    } else {
+        return [NSString stringWithFormat:@"/video/?target=%@", [realUrlString URLEncode]];
+    }
 }
 
 
@@ -63,7 +65,10 @@
                              }];
         
         
-        BOOL started = [self.webServer start];
+        // 绑定到localhost
+        NSMutableDictionary* options = [NSMutableDictionary dictionary];
+        [options setValue:@(YES) forKey:GCDWebServerOption_BindToLocalhost];
+        BOOL started = [self.webServer startWithOptions:options error:nil];
         if (!started) {
             NIDPRINT(@"WebServer Started Failed");
         }

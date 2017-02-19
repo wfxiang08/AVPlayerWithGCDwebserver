@@ -141,7 +141,7 @@
                 NSString* pattern = [NSString stringWithFormat:@"seg%05d.ts", i];
                 NSString* targetUrl = [NSString stringWithFormat:@"http://192.168.31.187:8000/02/hls-low/%@", pattern];
                 
-                NSString* newUrl = [[HLSProxyServer shareInstance] getLocalURL:targetUrl];
+                NSString* newUrl = [[HLSProxyServer shareInstance] getLocalURL:targetUrl withHost:NO];
                 m3u8FileData = [m3u8FileData stringByReplacingOccurrencesOfString:pattern
                                                                        withString:newUrl];
             }

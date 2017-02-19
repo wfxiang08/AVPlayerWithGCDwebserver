@@ -30,7 +30,7 @@
     NSString *realUrlStr = @"http://192.168.31.187:8000/02/hls-low/playlist.m3u8";
     
     
-    NSString *urlStr = [[HLSProxyServer shareInstance] getLocalURL:realUrlStr];
+    NSString *urlStr = [[HLSProxyServer shareInstance] getLocalURL:realUrlStr withHost:YES];
     
     NIDPRINT(@"PlayURL: %@", urlStr);
     
