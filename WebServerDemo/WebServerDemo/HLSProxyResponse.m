@@ -75,9 +75,6 @@
     
 }
 
-- (void)onClosed:(BOOL)succeed {
-    NIDPRINT(@"Succeed: %d", succeed);
-}
 
 - (BOOL)respondsToSelector:(SEL)aSelector {
     if (aSelector == @selector(asyncReadDataWithCompletion:)) {
@@ -103,6 +100,10 @@
     return data;
 }
 
+
+- (void)onClosed:(BOOL)succeed {
+    NIDPRINT(@"Succeed: %d", succeed);
+}
 
 - (void)asyncReadDataWithCompletion:(GCDWebServerBodyReaderCompletionBlock)completionBlockInner {
     
@@ -131,6 +132,7 @@
         NSURL* url = [NSURL URLWithString:_targetUrl];
         NIDPRINT(@"Cache Miss, Get by URL: %@", url);
         
+        // TODO: 优化
         data = [NSData dataWithContentsOfURL:url];
         
         if (data.length > 0 && ![_targetUrl hasSuffix:@".ts"]) {
@@ -167,7 +169,8 @@
             NSURL* lineURL = [NSURL URLWithString:line relativeToURL:baseUrl];
             if (tsCount < maxLine) {
                 line = [[HLSProxyServer shareInstance] getLocalURL:lineURL.absoluteString withHost:NO];
-                tsCount++;
+                // tsCount++;
+                // 全部都走代理，可以对多码率的视频做cache
             } else {
                 line = [lineURL absoluteString];
             }

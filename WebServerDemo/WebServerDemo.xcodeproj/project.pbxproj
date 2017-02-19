@@ -32,6 +32,8 @@
 		350B2A621E59806600BC2BC2 /* HLSProxyResponse.m in Sources */ = {isa = PBXBuildFile; fileRef = 350B2A611E59806600BC2BC2 /* HLSProxyResponse.m */; };
 		350B2A661E59B0BC00BC2BC2 /* HSLVideoCache.m in Sources */ = {isa = PBXBuildFile; fileRef = 350B2A651E59B0BC00BC2BC2 /* HSLVideoCache.m */; };
 		350B2A691E59C33C00BC2BC2 /* CacheKeyFilter.m in Sources */ = {isa = PBXBuildFile; fileRef = 350B2A681E59C33C00BC2BC2 /* CacheKeyFilter.m */; };
+		350B2A6E1E59E87000BC2BC2 /* HLSDownloader.m in Sources */ = {isa = PBXBuildFile; fileRef = 350B2A6B1E59E87000BC2BC2 /* HLSDownloader.m */; };
+		350B2A6F1E59E87000BC2BC2 /* HLSDownloaderOperation.m in Sources */ = {isa = PBXBuildFile; fileRef = 350B2A6D1E59E87000BC2BC2 /* HLSDownloaderOperation.m */; };
 		3590CEC51E5827BB0005DA62 /* NIDebuggingTools.m in Sources */ = {isa = PBXBuildFile; fileRef = 3590CEC41E5827BB0005DA62 /* NIDebuggingTools.m */; };
 		3590CEC81E58789D0005DA62 /* NSString+NSString_URLEndecode.m in Sources */ = {isa = PBXBuildFile; fileRef = 3590CEC71E58789D0005DA62 /* NSString+NSString_URLEndecode.m */; };
 		3590CECB1E588D310005DA62 /* NSData+NSData_MD5.m in Sources */ = {isa = PBXBuildFile; fileRef = 3590CECA1E588D310005DA62 /* NSData+NSData_MD5.m */; };
@@ -86,6 +88,10 @@
 		350B2A651E59B0BC00BC2BC2 /* HSLVideoCache.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HSLVideoCache.m; sourceTree = "<group>"; };
 		350B2A671E59C33C00BC2BC2 /* CacheKeyFilter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CacheKeyFilter.h; path = ../CacheKeyFilter.h; sourceTree = "<group>"; };
 		350B2A681E59C33C00BC2BC2 /* CacheKeyFilter.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = CacheKeyFilter.m; path = ../CacheKeyFilter.m; sourceTree = "<group>"; };
+		350B2A6A1E59E87000BC2BC2 /* HLSDownloader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HLSDownloader.h; sourceTree = "<group>"; };
+		350B2A6B1E59E87000BC2BC2 /* HLSDownloader.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HLSDownloader.m; sourceTree = "<group>"; };
+		350B2A6C1E59E87000BC2BC2 /* HLSDownloaderOperation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HLSDownloaderOperation.h; sourceTree = "<group>"; };
+		350B2A6D1E59E87000BC2BC2 /* HLSDownloaderOperation.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HLSDownloaderOperation.m; sourceTree = "<group>"; };
 		3590CEC31E5827BB0005DA62 /* NIDebuggingTools.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = NIDebuggingTools.h; sourceTree = "<group>"; };
 		3590CEC41E5827BB0005DA62 /* NIDebuggingTools.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NIDebuggingTools.m; sourceTree = "<group>"; };
 		3590CEC61E58789D0005DA62 /* NSString+NSString_URLEndecode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "NSString+NSString_URLEndecode.h"; sourceTree = "<group>"; };
@@ -130,6 +136,10 @@
 		27CB88521C59C584008BEF68 /* WebServerDemo */ = {
 			isa = PBXGroup;
 			children = (
+				350B2A6A1E59E87000BC2BC2 /* HLSDownloader.h */,
+				350B2A6B1E59E87000BC2BC2 /* HLSDownloader.m */,
+				350B2A6C1E59E87000BC2BC2 /* HLSDownloaderOperation.h */,
+				350B2A6D1E59E87000BC2BC2 /* HLSDownloaderOperation.m */,
 				3590CEC31E5827BB0005DA62 /* NIDebuggingTools.h */,
 				3590CEC41E5827BB0005DA62 /* NIDebuggingTools.m */,
 				27CB886A1C59C73F008BEF68 /* GCDWebServer */,
@@ -145,12 +155,12 @@
 				27CB88531C59C584008BEF68 /* Supporting Files */,
 				276BF84C1C75A6AD00CE1FD2 /* HLSProxyServer.h */,
 				276BF84D1C75A6AD00CE1FD2 /* HLSProxyServer.m */,
-				350B2A671E59C33C00BC2BC2 /* CacheKeyFilter.h */,
-				350B2A681E59C33C00BC2BC2 /* CacheKeyFilter.m */,
 				350B2A601E59806600BC2BC2 /* HLSProxyResponse.h */,
 				350B2A611E59806600BC2BC2 /* HLSProxyResponse.m */,
 				350B2A641E59B0BC00BC2BC2 /* HSLVideoCache.h */,
 				350B2A651E59B0BC00BC2BC2 /* HSLVideoCache.m */,
+				350B2A671E59C33C00BC2BC2 /* CacheKeyFilter.h */,
+				350B2A681E59C33C00BC2BC2 /* CacheKeyFilter.m */,
 			);
 			path = WebServerDemo;
 			sourceTree = "<group>";
@@ -310,10 +320,12 @@
 				350B2A661E59B0BC00BC2BC2 /* HSLVideoCache.m in Sources */,
 				3590CEC51E5827BB0005DA62 /* NIDebuggingTools.m in Sources */,
 				27CB88581C59C584008BEF68 /* AppDelegate.m in Sources */,
+				350B2A6E1E59E87000BC2BC2 /* HLSDownloader.m in Sources */,
 				27CB88921C59C73F008BEF68 /* GCDWebServerURLEncodedFormRequest.m in Sources */,
 				27CB88901C59C73F008BEF68 /* GCDWebServerFileRequest.m in Sources */,
 				27CB888D1C59C73F008BEF68 /* GCDWebServerRequest.m in Sources */,
 				350B2A691E59C33C00BC2BC2 /* CacheKeyFilter.m in Sources */,
+				350B2A6F1E59E87000BC2BC2 /* HLSDownloaderOperation.m in Sources */,
 				27CB88551C59C584008BEF68 /* main.m in Sources */,
 				27CB888F1C59C73F008BEF68 /* GCDWebServerDataRequest.m in Sources */,
 				276BF84E1C75A6AD00CE1FD2 /* HLSProxyServer.m in Sources */,
