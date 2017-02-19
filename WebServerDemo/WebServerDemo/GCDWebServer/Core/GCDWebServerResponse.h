@@ -82,6 +82,8 @@ typedef void (^GCDWebServerBodyReaderCompletionBlock)(NSData* data, NSError* err
 
 @end
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  *  The GCDWebServerResponse class is used to wrap a single HTTP response.
  *  It is instantiated by the handler of the GCDWebServer that handled the request.
@@ -180,6 +182,10 @@ typedef void (^GCDWebServerBodyReaderCompletionBlock)(NSData* data, NSError* err
  *  Convenience method that checks if the contentType property is defined.
  */
 - (BOOL)hasBody;
+
+// 关闭Response, 是否成功
+// 关闭Response, 是否成功
+- (void)onClosed:(BOOL)succeed;
 
 @end
 

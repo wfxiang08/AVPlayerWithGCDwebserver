@@ -503,12 +503,12 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
                 // 写完Header, 写Body
                 if (hasBody) {
                     [self _writeBodyWithCompletionBlock:^(BOOL successInner) {
-                        [_response performClose];  // TODO: There's nothing we can do on failure as headers have already been sent
+                        [_response performClose: successInner];  // TODO: There's nothing we can do on failure as headers have already been sent
             
                     }];
                 }
             } else if (hasBody) {
-                [_response performClose];
+                [_response performClose: NO];
             }
         }];
     } else {
@@ -711,26 +711,30 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
 }
 
 - (void)dealloc {
-  int result = close(_socket);
-  if (result != 0) {
-    GWS_LOG_ERROR(@"Failed closing socket %i for connection: %s (%i)", _socket, strerror(errno), errno);
-  } else {
-    GWS_LOG_DEBUG(@"Did close connection on socket %i", _socket);
-  }
+    // 关闭socket
+    int result = close(_socket);
+    if (result != 0) {
+        GWS_LOG_ERROR(@"Failed closing socket %i for connection: %s (%i)", _socket, strerror(errno), errno);
+    } else {
+        GWS_LOG_DEBUG(@"Did close connection on socket %i", _socket);
+    }
   
-  if (_opened) {
-    [self close];
-  }
+    // 关闭资源
+    if (_opened) {
+        [self close];
+    }
   
-  [_server didEndConnection:self];
+    // 通知Server关闭
+    [_server didEndConnection:self];
   
-  if (_requestMessage) {
-    CFRelease(_requestMessage);
-  }
+    // 释放内存
+    if (_requestMessage) {
+        CFRelease(_requestMessage);
+    }
   
-  if (_responseMessage) {
-    CFRelease(_responseMessage);
-  }
+    if (_responseMessage) {
+        CFRelease(_responseMessage);
+    }
 }
 
 @end
@@ -786,7 +790,9 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
 }
 
 // https://tools.ietf.org/html/rfc2617
-// 是否需要授权，
+// 是否需要授权
+// 一般情况下，暂不考虑
+//
 - (GCDWebServerResponse*)preflightRequest:(GCDWebServerRequest*)request {
 
     GWS_LOG_DEBUG(@"Connection on socket %i preflighting request \"%@ %@\" with %lu bytes body", _socket, _virtualHEAD ? @"HEAD" : _request.method, _request.path, (unsigned long)_bytesRead);
@@ -849,7 +855,8 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
 //
 - (void)processRequest:(GCDWebServerRequest*)request
             completion:(GCDWebServerCompletionBlock)completion {
-    GWS_LOG_DEBUG(@"Connection on socket %i processing request \"%@ %@\" with %lu bytes body", _socket, _virtualHEAD ? @"HEAD" : _request.method, _request.path, (unsigned long)_bytesRead);
+    GWS_LOG_DEBUG(@"Connection on socket %i processing request \"%@ %@\" with %lu bytes body",
+                  _socket, _virtualHEAD ? @"HEAD" : _request.method, _request.path, (unsigned long)_bytesRead);
   
     @try {
         // 异步处理请求
@@ -861,65 +868,83 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
 
 // http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.25
 // http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.26
-static inline BOOL _CompareResources(NSString* responseETag, NSString* requestETag, NSDate* responseLastModified, NSDate* requestLastModified) {
-  if (requestLastModified && responseLastModified) {
-    if ([responseLastModified compare:requestLastModified] != NSOrderedDescending) {
-      return YES;
+
+static inline BOOL _CompareResources(NSString* responseETag, NSString* requestETag,
+                                     NSDate* responseLastModified, NSDate* requestLastModified) {
+    
+    if (requestLastModified && responseLastModified) {
+        if ([responseLastModified compare:requestLastModified] != NSOrderedDescending) {
+            return YES;
+        }
     }
-  }
-  if (requestETag && responseETag) {  // Per the specs "If-None-Match" must be checked after "If-Modified-Since"
-    if ([requestETag isEqualToString:@"*"]) {
-      return YES;
+
+    if (requestETag && responseETag) {  // Per the specs "If-None-Match" must be checked after "If-Modified-Since"
+        if ([requestETag isEqualToString:@"*"]) {
+            return YES;
+        }
+        if ([responseETag isEqualToString:requestETag]) {
+            return YES;
+        }
     }
-    if ([responseETag isEqualToString:requestETag]) {
-      return YES;
-    }
-  }
-  return NO;
+    return NO;
 }
 
-- (GCDWebServerResponse*)overrideResponse:(GCDWebServerResponse*)response forRequest:(GCDWebServerRequest*)request {
-  if ((response.statusCode >= 200) && (response.statusCode < 300) && _CompareResources(response.eTag, request.ifNoneMatch, response.lastModifiedDate, request.ifModifiedSince)) {
-    NSInteger code = [request.method isEqualToString:@"HEAD"] || [request.method isEqualToString:@"GET"] ? kGCDWebServerHTTPStatusCode_NotModified : kGCDWebServerHTTPStatusCode_PreconditionFailed;
-    GCDWebServerResponse* newResponse = [GCDWebServerResponse responseWithStatusCode:code];
-    newResponse.cacheControlMaxAge = response.cacheControlMaxAge;
-    newResponse.lastModifiedDate = response.lastModifiedDate;
-    newResponse.eTag = response.eTag;
-    GWS_DCHECK(newResponse);
-    return newResponse;
-  }
-  return response;
+- (GCDWebServerResponse*)overrideResponse:(GCDWebServerResponse*)response
+                               forRequest:(GCDWebServerRequest*)request {
+    
+    if ((response.statusCode >= 200) && (response.statusCode < 300)
+            && _CompareResources(response.eTag, request.ifNoneMatch,
+                                 response.lastModifiedDate, request.ifModifiedSince)) {
+        
+        NSInteger code = ([request.method isEqualToString:@"HEAD"] || [request.method isEqualToString:@"GET"]) ?
+                kGCDWebServerHTTPStatusCode_NotModified : kGCDWebServerHTTPStatusCode_PreconditionFailed;
+        
+        GCDWebServerResponse* newResponse = [GCDWebServerResponse responseWithStatusCode:code];
+        newResponse.cacheControlMaxAge = response.cacheControlMaxAge;
+        newResponse.lastModifiedDate = response.lastModifiedDate;
+        newResponse.eTag = response.eTag;
+        GWS_DCHECK(newResponse);
+        return newResponse;
+    }
+
+    return response;
 }
 
-- (void)abortRequest:(GCDWebServerRequest*)request withStatusCode:(NSInteger)statusCode {
-  GWS_DCHECK(_responseMessage == NULL);
-  GWS_DCHECK((statusCode >= 400) && (statusCode < 600));
-  [self _initializeResponseHeadersWithStatusCode:statusCode];
-  [self _writeHeadersWithCompletionBlock:^(BOOL success) {
-    ;  // Nothing more to do
-  }];
-  GWS_LOG_DEBUG(@"Connection aborted with status code %i on socket %i", (int)statusCode, _socket);
+- (void)abortRequest:(GCDWebServerRequest*)request
+      withStatusCode:(NSInteger)statusCode {
+
+    GWS_DCHECK(_responseMessage == NULL);
+    GWS_DCHECK((statusCode >= 400) && (statusCode < 600));
+    [self _initializeResponseHeadersWithStatusCode:statusCode];
+    [self _writeHeadersWithCompletionBlock:^(BOOL success) {
+        ;  // Nothing more to do
+    }];
+    GWS_LOG_DEBUG(@"Connection aborted with status code %i on socket %i", (int)statusCode, _socket);
 }
 
+//
+// 关闭当前的Connection
+//
 - (void)close {
 #ifdef __GCDWEBSERVER_ENABLE_TESTING__
-  if (_requestPath) {
-    BOOL success = NO;
-    NSError* error = nil;
-    if (_requestFD > 0) {
-      close(_requestFD);
-      NSString* name = [NSString stringWithFormat:@"%03lu-%@.request", (unsigned long)_connectionIndex, _virtualHEAD ? @"HEAD" : _request.method];
-      success = [[NSFileManager defaultManager] moveItemAtPath:_requestPath toPath:[[[NSFileManager defaultManager] currentDirectoryPath] stringByAppendingPathComponent:name] error:&error];
+    // 测试模式
+    if (_requestPath) {
+        BOOL success = NO;
+        NSError* error = nil;
+        if (_requestFD > 0) {
+            close(_requestFD);
+            NSString* name = [NSString stringWithFormat:@"%03lu-%@.request", (unsigned long)_connectionIndex, _virtualHEAD ? @"HEAD" : _request.method];
+            success = [[NSFileManager defaultManager] moveItemAtPath:_requestPath toPath:[[[NSFileManager defaultManager] currentDirectoryPath] stringByAppendingPathComponent:name] error:&error];
+        }
+        if (!success) {
+            GWS_LOG_ERROR(@"Failed saving recorded request: %@", error);
+            GWS_DNOT_REACHED();
+        }
+        unlink([_requestPath fileSystemRepresentation]);
     }
-    if (!success) {
-      GWS_LOG_ERROR(@"Failed saving recorded request: %@", error);
-      GWS_DNOT_REACHED();
-    }
-    unlink([_requestPath fileSystemRepresentation]);
-  }
   
-  if (_responsePath) {
-    BOOL success = NO;
+    if (_responsePath) {
+        BOOL success = NO;
     NSError* error = nil;
     if (_responseFD > 0) {
       close(_responseFD);
@@ -934,11 +959,15 @@ static inline BOOL _CompareResources(NSString* responseETag, NSString* requestET
   }
 #endif
   
-  if (_request) {
-    GWS_LOG_VERBOSE(@"[%@] %@ %i \"%@ %@\" (%lu | %lu)", self.localAddressString, self.remoteAddressString, (int)_statusCode, _virtualHEAD ? @"HEAD" : _request.method, _request.path, (unsigned long)_bytesRead, (unsigned long)_bytesWritten);
-  } else {
-    GWS_LOG_VERBOSE(@"[%@] %@ %i \"(invalid request)\" (%lu | %lu)", self.localAddressString, self.remoteAddressString, (int)_statusCode, (unsigned long)_bytesRead, (unsigned long)_bytesWritten);
-  }
+    // 打印日志
+    if (_request) {
+        GWS_LOG_VERBOSE(@"[%@] %@ %i \"%@ %@\" (%lu | %lu)", self.localAddressString, self.remoteAddressString,
+                        (int)_statusCode, _virtualHEAD ? @"HEAD" : _request.method, _request.path,
+                        (unsigned long)_bytesRead, (unsigned long)_bytesWritten);
+    } else {
+        GWS_LOG_VERBOSE(@"[%@] %@ %i \"(invalid request)\" (%lu | %lu)", self.localAddressString, self.remoteAddressString,
+                        (int)_statusCode, (unsigned long)_bytesRead, (unsigned long)_bytesWritten);
+    }
 }
 
 @end

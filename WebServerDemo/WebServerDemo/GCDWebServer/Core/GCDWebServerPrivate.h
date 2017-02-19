@@ -220,11 +220,12 @@ extern NSString* GCDWebServerStringFromSockAddr(const struct sockaddr* addr, BOO
 - (void)setAttribute:(id)attribute forKey:(NSString*)key;
 @end
 
+
 @interface GCDWebServerResponse ()
 @property(nonatomic, readonly) NSDictionary* additionalHeaders;
 @property(nonatomic, readonly) BOOL usesChunkedTransferEncoding;
 - (void)prepareForReading;
 - (BOOL)performOpen:(NSError**)error;
 - (void)performReadDataWithCompletion:(GCDWebServerBodyReaderCompletionBlock)block;
-- (void)performClose;
+- (void)performClose:(BOOL)succeed;
 @end

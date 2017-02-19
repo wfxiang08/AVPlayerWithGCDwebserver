@@ -821,7 +821,7 @@ static inline NSString* _EncodeBase64(NSString* string) {
       }
       _options = nil;
   } else {
-    GWS_DNOT_REACHED();
+    // GWS_DNOT_REACHED();
   }
 }
 

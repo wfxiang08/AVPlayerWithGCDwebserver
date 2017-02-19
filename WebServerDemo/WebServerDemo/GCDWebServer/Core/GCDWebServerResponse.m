@@ -273,9 +273,16 @@
     }
 }
 
-- (void)performClose {
+// 关闭Response, 是否成功
+- (void)onClosed:(BOOL)succeed {
+    
+}
+
+- (void)performClose:(BOOL)succeed {
     GWS_DCHECK(_opened);
     [_reader close];
+    
+    [self onClosed: succeed];
 }
 
 - (NSString*)description {
