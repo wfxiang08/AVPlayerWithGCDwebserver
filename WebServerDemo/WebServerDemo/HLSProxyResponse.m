@@ -72,7 +72,7 @@
 
 - (void) detectCache {
     _data = [[HSLVideoCache sharedHlsCache] videoForKey: self.cacheKey];
-    if (NO) { // _data.length > 0) {
+    if (_data.length > 0) {
         self.contentLength = _data.length;
 #if defined(DEBUG) || defined(NI_DEBUG)
         // 可以用于设置断点，进行Debug
@@ -195,29 +195,6 @@
         _done = YES;
     }
     completionBlockInner([self.videoData subdataWithRange:NSMakeRange(start, videoLength - start)], nil);
-
-    
-
-
-    
-    
-   
-    
-//    NSURL* url = [NSURL URLWithString:_targetUrl];
-//    
-//    
-//    // 这个地方比较关键
-//    
-//        NIDPRINT(@"Cache Miss, Get by URL: %@", url);
-//        
-//        // TODO: 优化
-//
-//        // 缓存数据
-//        if (data.length > 0) {
-//            [[HSLVideoCache sharedHlsCache] storeVideoData: data forKey:self.cacheKey completion:nil];
-//        }
-//    
-//    // 数据处理完毕
 
 }
 
