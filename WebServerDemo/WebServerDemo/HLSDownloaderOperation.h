@@ -81,13 +81,7 @@ extern NSString * _Nonnull const HLSDownloadFinishNotification;
 - (nullable id)addHandlersForProgress:(nullable HLSDownloaderProgressBlock)progressBlock
                             completed:(nullable HLSDownloaderCompletedBlock)completedBlock;
 
-/**
- *  Cancels a set of callbacks. Once all callbacks are canceled, the operation is cancelled.
- *
- *  @param token the token representing a set of callbacks to cancel
- *
- *  @return YES if the operation was stopped because this was the last token to be canceled. NO otherwise.
- */
+// 取消token对应的Operation, 返回整个Operation是否都取消了
 - (BOOL)cancel:(nullable id)token;
 
 @end

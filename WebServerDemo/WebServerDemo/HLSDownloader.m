@@ -66,7 +66,7 @@
         // We send nil as delegate queue so that the session creates a serial operation queue for performing all delegate
         // method calls and completion handler calls.
         self.session = [NSURLSession sessionWithConfiguration:sessionConfiguration
-                                                     delegate:self
+                                                     delegate:self  // 自己作为Session的Delegate
                                                 delegateQueue:nil];
     }
     return self;
@@ -209,12 +209,15 @@
             // 如何创建 Operation呢?
             operation = createCallback();
             self.URLOperations[url] = operation;
-
-
+            
+            @weakify(self)
             __weak HLSDownloaderOperation *woperation = operation;
             operation.completionBlock = ^{
+                @strongify(self)
                 HLSDownloaderOperation *soperation = woperation;
-                if (!soperation) return;
+                if (!soperation) {
+                    return;
+                }
                 
                 // 完成之后，从URLOperations中删除自己
                 if (self.URLOperations[url] == soperation) {
@@ -227,7 +230,7 @@
         id downloadOperationCancelToken = [operation addHandlersForProgress:progressBlock
                                                                   completed:completedBlock];
 
-        // 创建一个新的: HSLDownloadToken, 核心是url以及token
+        // token通过url聚类，再通过临时创建的Canceltoken来具体对待
         token = [HLSDownloadToken new];
         token.url = url;
         token.downloadOperationCancelToken = downloadOperationCancelToken;

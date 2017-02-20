@@ -188,7 +188,7 @@ typedef NSMutableDictionary<NSString *, id> HLSCallbacksDictionary;
 
     if (self.dataTask) {
         for (HLSDownloaderProgressBlock progressBlock in [self callbacksForKey:kProgressCallbackKey]) {
-            progressBlock(0, NSURLResponseUnknownLength, self.request.URL);
+            progressBlock(self.videoData, 0, NSURLResponseUnknownLength, self.request.URL);
         }
         dispatch_async(dispatch_get_main_queue(), ^{
             [[NSNotificationCenter defaultCenter] postNotificationName:HLSDownloadStartNotification object:self];
@@ -290,7 +290,7 @@ didReceiveResponse:(NSURLResponse *)response
         
         // 状态码异常， 直接报错
         for (HLSDownloaderProgressBlock progressBlock in [self callbacksForKey:kProgressCallbackKey]) {
-            progressBlock(0, expected, self.request.URL);
+            progressBlock(self.videoData, 0, expected, self.request.URL);
         }
         
         self.videoData = [[NSMutableData alloc] initWithCapacity:expected];
@@ -329,12 +329,13 @@ didReceiveResponse:(NSURLResponse *)response
 - (void)URLSession:(NSURLSession *)session
           dataTask:(NSURLSessionDataTask *)dataTask
     didReceiveData:(NSData *)data {
+    
     // 积攒数据
     // 依赖服务器端的假设: video的数据足够小，可以放在内存中
     [self.videoData appendData:data];
 
     for (HLSDownloaderProgressBlock progressBlock in [self callbacksForKey:kProgressCallbackKey]) {
-        progressBlock(self.videoData.length, self.expectedSize, self.request.URL);
+        progressBlock(self.videoData, self.videoData.length, self.expectedSize, self.request.URL);
     }
 }
 
@@ -364,9 +365,11 @@ didReceiveResponse:(NSURLResponse *)response
     
     @synchronized(self) {
         self.dataTask = nil;
+        
         dispatch_async(dispatch_get_main_queue(), ^{
             // 通知Task停止，完成
             [[NSNotificationCenter defaultCenter] postNotificationName:HLSDownloadStopNotification object:self];
+            
             if (!error) {
                 [[NSNotificationCenter defaultCenter] postNotificationName:HLSDownloadFinishNotification object:self];
             }
@@ -374,8 +377,11 @@ didReceiveResponse:(NSURLResponse *)response
     }
     
     if (error) {
+        // 下载出错
         [self callCompletionBlocksWithError:error];
+    
     } else {
+        // 如果有completeCallback, 就通知
         if ([self callbacksForKey:kCompletedCallbackKey].count > 0) {
             /**
              *  See #1608 and #1623 - apparently, there is a race condition on `NSURLCache` that causes a crash
@@ -384,13 +390,15 @@ didReceiveResponse:(NSURLResponse *)response
              *  Note: responseFromCached is set to NO inside `willCacheResponse:`. This method doesn't get called for large images or images behind authentication
              */
             if (self.options & HLSDownloaderIgnoreCachedResponse && responseFromCached
-                && [[NSURLCache sharedURLCache] cachedResponseForRequest:self.request]) {
+                    && [[NSURLCache sharedURLCache] cachedResponseForRequest:self.request]) {
+                
                 // hack
                 [self callCompletionBlocksWithData:nil error:nil finished:YES];
             } else if (self.videoData) {
                 // self.videoData
                 // TODO:
             } else {
+                // 没有数据
                 [self callCompletionBlocksWithError:[NSError errorWithDomain:HLSErrorDomain
                                                                         code:0
                                                                     userInfo:@{NSLocalizedDescriptionKey : @"Video data is nil"}]];
@@ -400,6 +408,7 @@ didReceiveResponse:(NSURLResponse *)response
     [self done];
 }
 
+// 暂不考虑
 - (void)    URLSession:(NSURLSession *)session
                   task:(NSURLSessionTask *)task
    didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge

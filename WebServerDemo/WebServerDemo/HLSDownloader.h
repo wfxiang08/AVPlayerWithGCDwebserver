@@ -68,7 +68,8 @@ typedef NS_ENUM(NSInteger, HLSDownloaderExecutionOrder) {
 };
 
 
-typedef void(^HLSDownloaderProgressBlock)(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL);
+// receivedSize: 总共接收到的数据
+typedef void(^HLSDownloaderProgressBlock)(NSData* videoData, NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL);
 
 // 数据， 出错，是否结束
 typedef void(^HLSDownloaderCompletedBlock)(NSData * _Nullable data, NSError * _Nullable error, BOOL finished);

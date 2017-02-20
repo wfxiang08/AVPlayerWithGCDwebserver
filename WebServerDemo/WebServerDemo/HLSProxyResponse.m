@@ -6,6 +6,7 @@
 
 #import "HLSProxyResponse.h"
 #import "HLSProxyServer.h"
+#import "HLSDownloader.h"
 
 #import "NIDebuggingTools.h"
 
@@ -18,10 +19,17 @@
 @property (nonatomic, strong) NSString* cacheKey;
 @property (nonatomic, assign) BOOL done;
 @property (nonatomic, assign) int cacheTsNum;
+@property (nonatomic, assign) int readBufferSize;
+@property (nonatomic, assign) int receivedSize;
+@property (nonatomic, strong) NSData* videoData;
 @end
 
 @implementation HLSProxyResponse {
+@public
     NSData* _data;
+    HLSDownloadToken* _downloadToken;
+    dispatch_semaphore_t _semaphore;
+    
 }
 
 //
@@ -73,6 +81,43 @@
 #endif
     } else {
         _data = nil;
+        _readBufferSize = 0;
+        _semaphore = dispatch_semaphore_create(0);
+
+        // 准备开始下载数据
+        @weakify(self)
+        NSURL* url = [NSURL URLWithString:_targetUrl];
+        _downloadToken = [[HLSDownloader sharedDownloader] downloadWithURL:url
+                                                                   options:HLSDownloaderHighPriority
+                                                                  progress:^(NSData* videoData,NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
+                                                                      @strongify(self)
+                                                                      if (self) {
+                                                                          dispatch_semaphore_signal(self->_semaphore);
+                                                                      }
+                                                                      self.videoData = videoData;
+                                                                      self.receivedSize = (int)receivedSize;
+                                                                  }
+                                                                 completed:^(NSData * _Nullable data, NSError * _Nullable error, BOOL finished) {
+                                                                     @strongify(self)
+                                                                     if (self) {
+                                                                         dispatch_semaphore_signal(self->_semaphore);
+                                                                         self.done = YES;
+                                                                         
+                                                                         if (data.length > 0 && error != nil) {
+                                                                             
+                                                                             if (![self.targetUrl hasSuffix:@".ts"]) {
+                                                                                 data = [self processM3U8:data baseUrl:url maxProxyLine:self.cacheTsNum];
+                                                                                 
+                                                                                 // 用于debug断点
+                                                                                 NSString* dataStr = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+                                                                                 dataStr = nil;
+                                                                             }
+
+                                                                             
+                                                                             [[HSLVideoCache sharedHlsCache] storeVideoData: data forKey:self.cacheKey completion:nil];
+                                                                         }
+                                                                     }
+                                                                 }];
     }
     
 }
@@ -107,51 +152,47 @@
     NIDPRINT(@"Succeed: %d", succeed);
 }
 
+//
+// 一定要读取到数据，可以等待，但是不能返回长度为0的数据；否则就表示结束了
+//
 - (void)asyncReadDataWithCompletion:(GCDWebServerBodyReaderCompletionBlock)completionBlockInner {
     
     NIDASSERT(_data.length == 0);
     
-    // 这里很关键: 当前的block应该有状态
-    // 例如如果底层和网络结合起来，每次回调都应该能从网络新读取一些数据；然后再回调 completionBlockInner
-    // 什么时候回调结束呢?
-    //   网络数据读取完毕，只有返回[NSData data]
     if (_done) {
         completionBlockInner([NSData data], nil);
         return;
-    } else {
-        _done = YES;
     }
     
+    
+    // 不断等待，直到有足够的数据
+    while (self.readBufferSize >= self.receivedSize && !_data) {
+        dispatch_semaphore_wait(_semaphore, 100 * NSEC_PER_MSEC);
+    }
+    int videoLength = self.receivedSize;
+    completionBlockInner([self.videoData subdataWithRange:NSMakeRange(self.readBufferSize, videoLength - self.readBufferSize)], nil);
+    self.readBufferSize = videoLength;
 
     
-    NSData* data = [[HSLVideoCache sharedHlsCache] videoForKey: self.cacheKey];
     
-    NIDPRINT(@"Target: %@, CacheKey: %@", _targetUrl, self.cacheKey);
+   
     
-    // 如果缓存没有数据，如何处理呢?
-    if (data.length == 0) {
-        // 这个地方比较关键
-        NSURL* url = [NSURL URLWithString:_targetUrl];
-        NIDPRINT(@"Cache Miss, Get by URL: %@", url);
-        
-        // TODO: 优化
-        data = [NSData dataWithContentsOfURL:url];
-        
-        if (data.length > 0 && ![_targetUrl hasSuffix:@".ts"]) {
-            data = [self processM3U8:data baseUrl:url maxProxyLine:self.cacheTsNum];
-            
-            NSString* dataStr = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-            dataStr = nil;
-        }
-        
-        // 缓存数据
-        if (data.length > 0) {
-            [[HSLVideoCache sharedHlsCache] storeVideoData: data forKey:self.cacheKey completion:nil];
-        }
-    }
-    
-    // 数据处理完毕
-    completionBlockInner(data, nil);
+//    NSURL* url = [NSURL URLWithString:_targetUrl];
+//    
+//    
+//    // 这个地方比较关键
+//    
+//        NIDPRINT(@"Cache Miss, Get by URL: %@", url);
+//        
+//        // TODO: 优化
+//
+//        // 缓存数据
+//        if (data.length > 0) {
+//            [[HSLVideoCache sharedHlsCache] storeVideoData: data forKey:self.cacheKey completion:nil];
+//        }
+//    
+//    // 数据处理完毕
+
 }
 
 - (NSData*) processM3U8:(NSData*)data baseUrl:(NSURL*)baseUrl maxProxyLine:(int)maxLine {
