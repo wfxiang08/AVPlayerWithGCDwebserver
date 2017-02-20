@@ -1,5 +1,5 @@
 /*
- * This file is part of the SDWebImage package.
+ * This file is part of the HLS package.
  * (c) Olivier Poitrey <rs@dailymotion.com>
  *
  * For the full copyright and license information, please view the LICENSE
@@ -7,37 +7,19 @@
  */
 
 #import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 #import "HLSDownloader.h"
 
-extern NSString * _Nonnull const SDWebImageDownloadStartNotification;
-extern NSString * _Nonnull const SDWebImageDownloadReceiveResponseNotification;
-extern NSString * _Nonnull const SDWebImageDownloadStopNotification;
-extern NSString * _Nonnull const SDWebImageDownloadFinishNotification;
+extern NSString * _Nonnull const HLSDownloadStartNotification;
+extern NSString * _Nonnull const HLSDownloadStopNotification;
+
+extern NSString * _Nonnull const HLSDownloadReceiveResponseNotification;
+extern NSString * _Nonnull const HLSDownloadFinishNotification;
 
 
-
-/**
- Describes a downloader operation. If one wants to use a custom downloader op, it needs to inherit from `NSOperation` and conform to this protocol
- */
-@protocol HLSDownloaderOperationInterface<NSObject>
-
-- (nonnull instancetype)initWithRequest:(nullable NSURLRequest *)request
-                              inSession:(nullable NSURLSession *)session
-                                options:(SDWebImageDownloaderOptions)options;
-
-- (nullable id)addHandlersForProgress:(nullable HLSDownloaderProgressBlock)progressBlock
-                            completed:(nullable HLSDownloaderCompletedBlock)completedBlock;
-
-- (BOOL)shouldDecompressImages;
-- (void)setShouldDecompressImages:(BOOL)value;
-
-- (nullable NSURLCredential *)credential;
-- (void)setCredential:(nullable NSURLCredential *)value;
-
-@end
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-@interface HLSDownloaderOperation : NSOperation <HLSDownloaderOperationInterface, NSURLSessionTaskDelegate, NSURLSessionDataDelegate>
+@interface HLSDownloaderOperation : NSOperation <NSURLSessionTaskDelegate, NSURLSessionDataDelegate>
 
 // The request used by the operation's task.
 @property (strong, nonatomic, readonly, nullable) NSURLRequest *request;
@@ -48,14 +30,6 @@ extern NSString * _Nonnull const SDWebImageDownloadFinishNotification;
 @property (strong, nonatomic, readonly, nullable) NSURLSessionTask *dataTask;
 
 
-@property (assign, nonatomic) BOOL shouldDecompressImages;
-
-/**
- *  Was used to determine whether the URL connection should consult the credential storage for authenticating the connection.
- *  @deprecated Not used for a couple of versions
- */
-@property (nonatomic, assign) BOOL shouldUseCredentialStorage __deprecated_msg("Property deprecated. Does nothing. Kept only for backwards compatibility");
-
 /**
  * The credential used for authentication challenges in `-connection:didReceiveAuthenticationChallenge:`.
  *
@@ -64,9 +38,9 @@ extern NSString * _Nonnull const SDWebImageDownloadFinishNotification;
 @property (nonatomic, strong, nullable) NSURLCredential *credential;
 
 /**
- * The SDWebImageDownloaderOptions for the receiver.
+ * The HLSDownloaderOptions for the receiver.
  */
-@property (assign, nonatomic, readonly) SDWebImageDownloaderOptions options;
+@property (assign, nonatomic, readonly) HLSDownloaderOptions options;
 
 /**
  * The expected size of data.
@@ -79,9 +53,9 @@ extern NSString * _Nonnull const SDWebImageDownloadFinishNotification;
 @property (strong, nonatomic, nullable) NSURLResponse *response;
 
 /**
- *  Initializes a `SDWebImageDownloaderOperation` object
+ *  Initializes a `HLSDownloaderOperation` object
  *
- *  @see SDWebImageDownloaderOperation
+ *  @see HLSDownloaderOperation
  *
  *  @param request        the URL request
  *  @param session        the URL session in which this operation will run
@@ -91,7 +65,7 @@ extern NSString * _Nonnull const SDWebImageDownloadFinishNotification;
  */
 - (nonnull instancetype)initWithRequest:(nullable NSURLRequest *)request
                               inSession:(nullable NSURLSession *)session
-                                options:(SDWebImageDownloaderOptions)options NS_DESIGNATED_INITIALIZER;
+                                options:(HLSDownloaderOptions)options NS_DESIGNATED_INITIALIZER;
 
 /**
  *  Adds handlers for progress and completion. Returns a tokent that can be passed to -cancel: to cancel this set of

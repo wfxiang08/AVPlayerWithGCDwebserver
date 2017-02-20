@@ -1,5 +1,5 @@
 /*
- * This file is part of the SDWebImage package.
+ * This file is part of the HLS package.
  * (c) Olivier Poitrey <rs@dailymotion.com>
  *
  * For the full copyright and license information, please view the LICENSE
@@ -7,24 +7,26 @@
  */
 
 #import "HLSDownloaderOperation.h"
-#import <UIKit/UIKit.h>
+
 #import "NIDebuggingTools.h"
 
-NSString *const SDWebImageDownloadStartNotification = @"SDWebImageDownloadStartNotification";
-NSString *const SDWebImageDownloadReceiveResponseNotification = @"SDWebImageDownloadReceiveResponseNotification";
-NSString *const SDWebImageDownloadStopNotification = @"SDWebImageDownloadStopNotification";
-NSString *const SDWebImageDownloadFinishNotification = @"SDWebImageDownloadFinishNotification";
+NSString *const HLSDownloadStartNotification = @"HLSDownloadStartNotification";
+NSString *const HLSDownloadStopNotification = @"HLSDownloadStopNotification";
+
+NSString *const HLSDownloadReceiveResponseNotification = @"HLSDownloadReceiveResponseNotification";
+
+NSString *const HLSDownloadFinishNotification = @"HLSDownloadFinishNotification";
 
 static NSString *const kProgressCallbackKey = @"progress";
 static NSString *const kCompletedCallbackKey = @"completed";
-static NSString *const SDWebImageErrorDomain = @"SDWebImageErrorDomain";
+static NSString *const HLSErrorDomain = @"HLSErrorDomain";
 
-typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
+typedef NSMutableDictionary<NSString *, id> HLSCallbacksDictionary;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 @interface HLSDownloaderOperation ()
 
-@property (strong, nonatomic, nonnull) NSMutableArray<SDCallbacksDictionary *> *callbackBlocks;
+@property (strong, nonatomic, nonnull) NSMutableArray<HLSCallbacksDictionary *> *callbackBlocks;
 
 @property (assign, nonatomic, getter = isExecuting) BOOL executing;
 @property (assign, nonatomic, getter = isFinished) BOOL finished;
@@ -60,17 +62,18 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
 
 - (nonnull instancetype)initWithRequest:(nullable NSURLRequest *)request
                               inSession:(nullable NSURLSession *)session
-                                options:(SDWebImageDownloaderOptions)options {
+                                options:(HLSDownloaderOptions)options {
     if ((self = [super init])) {
         _request = [request copy];
-        _shouldDecompressImages = YES;
         _options = options;
         _callbackBlocks = [NSMutableArray new];
         _executing = NO;
         _finished = NO;
         _expectedSize = 0;
         _unownedSession = session;
-        responseFromCached = YES; // Initially wrong until `- URLSession:dataTask:willCacheResponse:completionHandler: is called or not called
+        
+        // Initially wrong until `- URLSession:dataTask:willCacheResponse:completionHandler: is called or not called
+        responseFromCached = YES;
         _barrierQueue = dispatch_queue_create("com.starmaker.HLSDownloaderOperationBarrierQueue", DISPATCH_QUEUE_CONCURRENT);
     }
     return self;
@@ -83,7 +86,7 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
 - (nullable id)addHandlersForProgress:(nullable HLSDownloaderProgressBlock)progressBlock
                             completed:(nullable HLSDownloaderCompletedBlock)completedBlock {
     
-    SDCallbacksDictionary *callbacks = [NSMutableDictionary new];
+    HLSCallbacksDictionary *callbacks = [NSMutableDictionary new];
     if (progressBlock) {
         callbacks[kProgressCallbackKey] = [progressBlock copy];
     }
@@ -177,7 +180,7 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
             progressBlock(0, NSURLResponseUnknownLength, self.request.URL);
         }
         dispatch_async(dispatch_get_main_queue(), ^{
-            [[NSNotificationCenter defaultCenter] postNotificationName:SDWebImageDownloadStartNotification object:self];
+            [[NSNotificationCenter defaultCenter] postNotificationName:HLSDownloadStartNotification object:self];
         });
     } else {
         [self callCompletionBlocksWithError:[NSError errorWithDomain:NSURLErrorDomain code:0 userInfo:@{NSLocalizedDescriptionKey : @"Connection can't be initialized"}]];
@@ -209,7 +212,7 @@ typedef NSMutableDictionary<NSString *, id> SDCallbacksDictionary;
     if (self.dataTask) {
         [self.dataTask cancel];
         dispatch_async(dispatch_get_main_queue(), ^{
-            [[NSNotificationCenter defaultCenter] postNotificationName:SDWebImageDownloadStopNotification object:self];
+            [[NSNotificationCenter defaultCenter] postNotificationName:HLSDownloadStopNotification object:self];
         });
 
         // As we cancelled the connection, its callback won't be called and thus won't
@@ -281,7 +284,7 @@ didReceiveResponse:(NSURLResponse *)response
         self.videoData = [[NSMutableData alloc] initWithCapacity:expected];
         self.response = response;
         dispatch_async(dispatch_get_main_queue(), ^{
-            [[NSNotificationCenter defaultCenter] postNotificationName:SDWebImageDownloadReceiveResponseNotification object:self];
+            [[NSNotificationCenter defaultCenter] postNotificationName:HLSDownloadReceiveResponseNotification object:self];
         });
     } else {
         NSUInteger code = ((NSHTTPURLResponse *)response).statusCode;
@@ -294,7 +297,7 @@ didReceiveResponse:(NSURLResponse *)response
             [self.dataTask cancel];
         }
         dispatch_async(dispatch_get_main_queue(), ^{
-            [[NSNotificationCenter defaultCenter] postNotificationName:SDWebImageDownloadStopNotification object:self];
+            [[NSNotificationCenter defaultCenter] postNotificationName:HLSDownloadStopNotification object:self];
         });
         
         [self callCompletionBlocksWithError:[NSError errorWithDomain:NSURLErrorDomain code:((NSHTTPURLResponse *)response).statusCode userInfo:nil]];
@@ -350,9 +353,9 @@ didReceiveResponse:(NSURLResponse *)response
         self.dataTask = nil;
         dispatch_async(dispatch_get_main_queue(), ^{
             // 通知Task停止，完成
-            [[NSNotificationCenter defaultCenter] postNotificationName:SDWebImageDownloadStopNotification object:self];
+            [[NSNotificationCenter defaultCenter] postNotificationName:HLSDownloadStopNotification object:self];
             if (!error) {
-                [[NSNotificationCenter defaultCenter] postNotificationName:SDWebImageDownloadFinishNotification object:self];
+                [[NSNotificationCenter defaultCenter] postNotificationName:HLSDownloadFinishNotification object:self];
             }
         });
     }
@@ -367,14 +370,14 @@ didReceiveResponse:(NSURLResponse *)response
              *    and images for which responseFromCached is YES (only the ones that cannot be cached).
              *  Note: responseFromCached is set to NO inside `willCacheResponse:`. This method doesn't get called for large images or images behind authentication
              */
-            if (self.options & SDWebImageDownloaderIgnoreCachedResponse && responseFromCached && [[NSURLCache sharedURLCache] cachedResponseForRequest:self.request]) {
+            if (self.options & HLSDownloaderIgnoreCachedResponse && responseFromCached && [[NSURLCache sharedURLCache] cachedResponseForRequest:self.request]) {
                 // hack
                 [self callCompletionBlocksWithData:nil error:nil finished:YES];
             } else if (self.videoData) {
                 // self.videoData
                 // TODO:
             } else {
-                [self callCompletionBlocksWithError:[NSError errorWithDomain:SDWebImageErrorDomain
+                [self callCompletionBlocksWithError:[NSError errorWithDomain:HLSErrorDomain
                                                                         code:0
                                                                     userInfo:@{NSLocalizedDescriptionKey : @"Image data is nil"}]];
             }
@@ -389,7 +392,7 @@ didReceiveResponse:(NSURLResponse *)response
     __block NSURLCredential *credential = nil;
     
     if ([challenge.protectionSpace.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust]) {
-        if (!(self.options & SDWebImageDownloaderAllowInvalidSSLCertificates)) {
+        if (!(self.options & HLSDownloaderAllowInvalidSSLCertificates)) {
             disposition = NSURLSessionAuthChallengePerformDefaultHandling;
         } else {
             credential = [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust];
@@ -417,7 +420,7 @@ didReceiveResponse:(NSURLResponse *)response
 
 // 是否后台继续运行
 - (BOOL)shouldContinueWhenAppEntersBackground {
-    return self.options & SDWebImageDownloaderContinueInBackground;
+    return self.options & HLSDownloaderContinueInBackground;
 }
 
 - (void)callCompletionBlocksWithError:(nullable NSError *)error {

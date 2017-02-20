@@ -1,5 +1,5 @@
 /*
- * This file is part of the SDWebImage package.
+ * This file is part of the HLS package.
  * (c) Olivier Poitrey <rs@dailymotion.com>
  *
  * For the full copyright and license information, please view the LICENSE
@@ -19,7 +19,7 @@
 
 @property (strong, nonatomic, nonnull) NSOperationQueue *downloadQueue;
 @property (weak, nonatomic, nullable) NSOperation *lastAddedOperation;
-@property (assign, nonatomic, nullable) Class operationClass;
+
 @property (strong, nonatomic, nonnull) NSMutableDictionary<NSURL *, HLSDownloaderOperation *> *URLOperations;
 @property (strong, nonatomic, nullable) SDHTTPHeadersMutableDictionary *HTTPHeaders;
 // This queue is used to serialize the handling of the network responses of all the download operation in a single queue
@@ -34,7 +34,7 @@
 
 + (void)initialize {
     // Bind SDNetworkActivityIndicator if available (download it here: http://github.com/rs/SDNetworkActivityIndicator )
-    // To use it, just add #import "SDNetworkActivityIndicator.h" in addition to the SDWebImage import
+    // To use it, just add #import "SDNetworkActivityIndicator.h" in addition to the HLS import
     if (NSClassFromString(@"SDNetworkActivityIndicator")) {
 
 #pragma clang diagnostic push
@@ -45,16 +45,16 @@
 
         // Remove observer in case it was previously added.
         [[NSNotificationCenter defaultCenter] removeObserver:activityIndicator
-                                                        name:SDWebImageDownloadStartNotification object:nil];
+                                                        name:HLSDownloadStartNotification object:nil];
         [[NSNotificationCenter defaultCenter] removeObserver:activityIndicator
-                                                        name:SDWebImageDownloadStopNotification object:nil];
+                                                        name:HLSDownloadStopNotification object:nil];
 
         [[NSNotificationCenter defaultCenter] addObserver:activityIndicator
                                                  selector:NSSelectorFromString(@"startActivity")
-                                                     name:SDWebImageDownloadStartNotification object:nil];
+                                                     name:HLSDownloadStartNotification object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:activityIndicator
                                                  selector:NSSelectorFromString(@"stopActivity")
-                                                     name:SDWebImageDownloadStopNotification object:nil];
+                                                     name:HLSDownloadStopNotification object:nil];
     }
 }
 
@@ -74,9 +74,9 @@
 // 初始化
 - (nonnull instancetype)initWithSessionConfiguration:(nullable NSURLSessionConfiguration *)sessionConfiguration {
     if ((self = [super init])) {
-        _operationClass = [HLSDownloaderOperation class];
-        
-        _executionOrder = SDWebImageDownloaderFIFOExecutionOrder;
+
+        _executionOrder = HLSDownloaderFIFOExecutionOrder;
+
         _downloadQueue = [NSOperationQueue new];
         _downloadQueue.maxConcurrentOperationCount = 6;
         _downloadQueue.name = @"com.startmaker.HLSDownloader";
@@ -131,20 +131,12 @@
     return _downloadQueue.maxConcurrentOperationCount;
 }
 
-- (void)setOperationClass:(nullable Class)operationClass {
-    if (operationClass && [operationClass isSubclassOfClass:[NSOperation class]]
-            && [operationClass conformsToProtocol:@protocol(HLSDownloaderOperationInterface)]) {
-        _operationClass = operationClass;
-    } else {
-        _operationClass = [HLSDownloaderOperation class];
-    }
-}
 
 //
 // 如何下载给定的url
 //
 - (nullable HLSDownloadToken *)downloadWithURL:(nullable NSURL *)url
-                                       options:(SDWebImageDownloaderOptions)options
+                                       options:(HLSDownloaderOptions)options
                                       progress:(nullable HLSDownloaderProgressBlock)progressBlock
                                      completed:(nullable HLSDownloaderCompletedBlock)completedBlock {
     
@@ -160,14 +152,14 @@
             timeoutInterval = 15.0;
         }
 
-        NSURLRequestCachePolicy policy = (options & SDWebImageDownloaderUseNSURLCache) ? NSURLRequestUseProtocolCachePolicy : NSURLRequestReloadIgnoringLocalCacheData;
+        NSURLRequestCachePolicy policy = (options & HLSDownloaderUseNSURLCache) ? NSURLRequestUseProtocolCachePolicy : NSURLRequestReloadIgnoringLocalCacheData;
 
         // In order to prevent from potential duplicate caching (NSURLCache + SDImageCache) we disable the cache for image requests if told otherwise
         NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:url
                                                                     cachePolicy:policy
                                                                 timeoutInterval:timeoutInterval];
 
-        request.HTTPShouldHandleCookies = (options & SDWebImageDownloaderHandleCookies);
+        request.HTTPShouldHandleCookies = (options & HLSDownloaderHandleCookies);
         request.HTTPShouldUsePipelining = YES;
 
         if (self.headersFilter) {
@@ -177,17 +169,17 @@
         }
 
         // 构建Operation: request --> operation
-        HLSDownloaderOperation *operation = [[self.operationClass alloc] initWithRequest:request
-                                                                               inSession:self.session
-                                                                                 options:options];
+        HLSDownloaderOperation *operation = [[HLSDownloaderOperation alloc] initWithRequest:request
+                                                                                  inSession:self.session
+                                                                                    options:options];
         if (self.urlCredential) {
             operation.credential = self.urlCredential;
         }
 
         // 下载的优先级控制, 例如: 预加载可以低优先级来做
-        if (options & SDWebImageDownloaderHighPriority) {
+        if (options & HLSDownloaderHighPriority) {
             operation.queuePriority = NSOperationQueuePriorityHigh;
-        } else if (options & SDWebImageDownloaderLowPriority) {
+        } else if (options & HLSDownloaderLowPriority) {
             operation.queuePriority = NSOperationQueuePriorityLow;
         }
 
@@ -195,7 +187,7 @@
         [self.downloadQueue addOperation:operation];
 
         // 执行顺序?
-        if (self.executionOrder == SDWebImageDownloaderLIFOExecutionOrder) {
+        if (self.executionOrder == HLSDownloaderLIFOExecutionOrder) {
             // Emulate LIFO execution order by systematically adding new operations as last operation's dependency
             [self.lastAddedOperation addDependency:operation];
             self.lastAddedOperation = operation;

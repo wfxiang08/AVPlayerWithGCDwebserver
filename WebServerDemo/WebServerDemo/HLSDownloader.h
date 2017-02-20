@@ -1,5 +1,5 @@
 /*
- * This file is part of the SDWebImage package.
+ * This file is part of the HLS package.
  * (c) Olivier Poitrey <rs@dailymotion.com>
  *
  * For the full copyright and license information, please view the LICENSE
@@ -9,66 +9,66 @@
 #import <Foundation/Foundation.h>
 
 
-typedef NS_OPTIONS(NSUInteger, SDWebImageDownloaderOptions) {
-    SDWebImageDownloaderLowPriority = 1 << 0,
-    SDWebImageDownloaderProgressiveDownload = 1 << 1,
+typedef NS_OPTIONS(NSUInteger, HLSDownloaderOptions) {
+    HLSDownloaderLowPriority = 1 << 0,
+    HLSDownloaderProgressiveDownload = 1 << 1,
 
     /**
      * By default, request prevent the use of NSURLCache. With this flag, NSURLCache
      * is used with default policies.
      */
-    SDWebImageDownloaderUseNSURLCache = 1 << 2,
+    HLSDownloaderUseNSURLCache = 1 << 2,
 
     /**
      * Call completion block with nil image/imageData if the image was read from NSURLCache
-     * (to be combined with `SDWebImageDownloaderUseNSURLCache`).
+     * (to be combined with `HLSDownloaderUseNSURLCache`).
      */
 
-    SDWebImageDownloaderIgnoreCachedResponse = 1 << 3,
+    HLSDownloaderIgnoreCachedResponse = 1 << 3,
     /**
      * In iOS 4+, continue the download of the image if the app goes to background. This is achieved by asking the system for
      * extra time in background to let the request finish. If the background task expires the operation will be cancelled.
      */
 
-    SDWebImageDownloaderContinueInBackground = 1 << 4,
+    HLSDownloaderContinueInBackground = 1 << 4,
 
     /**
      * Handles cookies stored in NSHTTPCookieStore by setting 
      * NSMutableURLRequest.HTTPShouldHandleCookies = YES;
      */
-    SDWebImageDownloaderHandleCookies = 1 << 5,
+    HLSDownloaderHandleCookies = 1 << 5,
 
     /**
      * Enable to allow untrusted SSL certificates.
      * Useful for testing purposes. Use with caution in production.
      */
-    SDWebImageDownloaderAllowInvalidSSLCertificates = 1 << 6,
+    HLSDownloaderAllowInvalidSSLCertificates = 1 << 6,
 
     /**
      * Put the image in the high priority queue.
      */
-    SDWebImageDownloaderHighPriority = 1 << 7,
+    HLSDownloaderHighPriority = 1 << 7,
     
     /**
      * Scale down the image
      */
-    SDWebImageDownloaderScaleDownLargeImages = 1 << 8,
+    HLSDownloaderScaleDownLargeImages = 1 << 8,
 };
 
-typedef NS_ENUM(NSInteger, SDWebImageDownloaderExecutionOrder) {
+typedef NS_ENUM(NSInteger, HLSDownloaderExecutionOrder) {
     /**
      * Default value. All download operations will execute in queue style (first-in-first-out).
      */
-    SDWebImageDownloaderFIFOExecutionOrder,
+    HLSDownloaderFIFOExecutionOrder,
 
     /**
      * All download operations will execute in stack style (last-in-first-out).
      */
-    SDWebImageDownloaderLIFOExecutionOrder
+    HLSDownloaderLIFOExecutionOrder
 };
 
-extern NSString * _Nonnull const SDWebImageDownloadStartNotification;
-extern NSString * _Nonnull const SDWebImageDownloadStopNotification;
+extern NSString * _Nonnull const HLSDownloadStartNotification;
+extern NSString * _Nonnull const HLSDownloadStopNotification;
 
 typedef void(^HLSDownloaderProgressBlock)(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL);
 
@@ -78,7 +78,7 @@ typedef void(^HLSDownloaderCompletedBlock)(NSData * _Nullable data, NSError * _N
 typedef NSDictionary<NSString *, NSString *> SDHTTPHeadersDictionary;
 typedef NSMutableDictionary<NSString *, NSString *> SDHTTPHeadersMutableDictionary;
 
-typedef SDHTTPHeadersDictionary * _Nullable (^SDWebImageDownloaderHeadersFilterBlock)(NSURL * _Nullable url, SDHTTPHeadersDictionary * _Nullable headers);
+typedef SDHTTPHeadersDictionary * _Nullable (^HLSDownloaderHeadersFilterBlock)(NSURL * _Nullable url, SDHTTPHeadersDictionary * _Nullable headers);
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -107,9 +107,9 @@ typedef SDHTTPHeadersDictionary * _Nullable (^SDWebImageDownloaderHeadersFilterB
 
 
 /**
- * Changes download operations execution order. Default value is `SDWebImageDownloaderFIFOExecutionOrder`.
+ * Changes download operations execution order. Default value is `HLSDownloaderFIFOExecutionOrder`.
  */
-@property (assign, nonatomic) SDWebImageDownloaderExecutionOrder executionOrder;
+@property (assign, nonatomic) HLSDownloaderExecutionOrder executionOrder;
 
 // 单例
 + (nonnull instancetype)sharedDownloader;
@@ -126,7 +126,7 @@ typedef SDHTTPHeadersDictionary * _Nullable (^SDWebImageDownloaderHeadersFilterB
  * This block will be invoked for each downloading image request, returned
  * NSDictionary will be used as headers in corresponding HTTP request.
  */
-@property (nonatomic, copy, nullable) SDWebImageDownloaderHeadersFilterBlock headersFilter;
+@property (nonatomic, copy, nullable) HLSDownloaderHeadersFilterBlock headersFilter;
 
 /**
  * Creates an instance of a downloader with specified session configuration.
@@ -150,22 +150,13 @@ typedef SDHTTPHeadersDictionary * _Nullable (^SDWebImageDownloaderHeadersFilterB
  */
 - (nullable NSString *)valueForHTTPHeaderField:(nullable NSString *)field;
 
-/**
- * Sets a subclass of `SDWebImageDownloaderOperation` as the default
- * `NSOperation` to be used each time SDWebImage constructs a request
- * operation to download an image.
- *
- * @param operationClass The subclass of `SDWebImageDownloaderOperation` to set 
- *        as default. Passing `nil` will revert to `SDWebImageDownloaderOperation`.
- */
-- (void)setOperationClass:(nullable Class)operationClass;
 
 /**
- * Creates a SDWebImageDownloader async downloader instance with a given URL
+ * Creates a HLSDownloader async downloader instance with a given URL
  *
  * The delegate will be informed when the image is finish downloaded or an error has happen.
  *
- * @see SDWebImageDownloaderDelegate
+ * @see HLSDownloaderDelegate
  *
  * @param url            The URL to the image to download
  * @param options        The options to be used for this download
@@ -174,8 +165,8 @@ typedef SDHTTPHeadersDictionary * _Nullable (^SDWebImageDownloaderHeadersFilterB
  * @param completedBlock A block called once the download is completed.
  *                       If the download succeeded, the image parameter is set, in case of error,
  *                       error parameter is set with the error. The last parameter is always YES
- *                       if SDWebImageDownloaderProgressiveDownload isn't use. With the
- *                       SDWebImageDownloaderProgressiveDownload option, this block is called
+ *                       if HLSDownloaderProgressiveDownload isn't use. With the
+ *                       HLSDownloaderProgressiveDownload option, this block is called
  *                       repeatedly with the partial image object and the finished argument set to NO
  *                       before to be called a last time with the full image and finished argument
  *                       set to YES. In case of error, the finished argument is always YES.
@@ -184,7 +175,7 @@ typedef SDHTTPHeadersDictionary * _Nullable (^SDWebImageDownloaderHeadersFilterB
  */
 // 如何下载给定的url
 - (nullable HLSDownloadToken *)downloadWithURL:(nullable NSURL *)url
-                                       options:(SDWebImageDownloaderOptions)options
+                                       options:(HLSDownloaderOptions)options
                                       progress:(nullable HLSDownloaderProgressBlock)progressBlock
                                      completed:(nullable HLSDownloaderCompletedBlock)completedBlock;
 

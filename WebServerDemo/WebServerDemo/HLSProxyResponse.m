@@ -22,7 +22,6 @@
 
 @implementation HLSProxyResponse {
     NSData* _data;
-    
 }
 
 //
@@ -32,8 +31,9 @@
 // 暂不考虑其他的格式的文件
 //
 + (NSString *)getContentType:(NSString *)target {
-    
-    if ([target rangeOfString:@".ts"].length > 0) {
+    NSURL* url = [NSURL URLWithString:target];
+    // 凡是以.ts结尾的都是ts文件，其他的为m3u8
+    if ([url.pathExtension isEqualToString:@".ts"]) {
         return @"video/MP2T";
     } else {
         return @"application/x-mpegURL";
@@ -64,11 +64,13 @@
     _data = [[HSLVideoCache sharedHlsCache] videoForKey: self.cacheKey];
     if (_data.length > 0) {
         self.contentLength = _data.length;
-        
+#if defined(DEBUG) || defined(NI_DEBUG)
+        // 可以用于设置断点，进行Debug
         if ([self.targetUrl hasSuffix:@".m3u8"]) {
             NSString* str = [[NSString alloc] initWithData:_data encoding:NSUTF8StringEncoding];
             str = nil;
         }
+#endif
     } else {
         _data = nil;
     }
