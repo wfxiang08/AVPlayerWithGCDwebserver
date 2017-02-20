@@ -96,27 +96,31 @@
                                                                       NIDPRINT(@"Download progress: %d", (int)receivedSize);
                                                                       
                                                                       @strongify(self)
-                                                                      self.videoData = videoData;
-                                                                      self.receivedSize = (int)receivedSize;
-                                                                      
                                                                       // m3u8文件需要等待，最终一口气传递过去
-                                                                      if (self && [self.targetUrl hasSuffix:@".ts"]) {
+                                                                      // ts文件需要按照stream格式传递过去
+                                                                      if ([self.targetUrl hasSuffix:@".ts"]) {
+                                                                          self.videoData = videoData;
+                                                                          self.receivedSize = (int)receivedSize;
                                                                           dispatch_semaphore_signal(self->_semaphore);
                                                                       }
                                                                   }
                                                                  completed:^(NSData * _Nullable data, NSError * _Nullable error, BOOL finished) {
                                                                      @strongify(self)
                                                                      if (self) {
-                                                                         NIDPRINT(@"Download finished");
-                                                                         
-                                                                         if (data.length > 0 && error != nil) {
+                                                                         NIDPRINT(@"Download finished, Error: %@", error);
+                                                                         // 如果有数据，且没有下载错误， 则进一步后处理数据和保存到Cache中
+                                                                         if (data.length > 0 && error == nil) {
                                                                              
-                                                                             if ([self.targetUrl hasSuffix:@".ts"]) {
+                                                                             // 非 .ts 文件，就是m3u8
+                                                                             if (![self.targetUrl hasSuffix:@".ts"]) {
                                                                                  data = [self processM3U8:data baseUrl:url maxProxyLine:self.cacheTsNum];
-                                                                                 
+
+#if defined(DEBUG) || defined(NI_DEBUG)
                                                                                  // 用于debug断点
-                                                                                 NSString* dataStr = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+                                                                                 NSString* dataStr = [[NSString alloc] initWithData:data
+                                                                                                                           encoding:NSUTF8StringEncoding];
                                                                                  dataStr = nil;
+#endif
                                                                              }
 
                                                                              
@@ -126,6 +130,7 @@
                                                                          self.videoData = data;
                                                                          self.receivedSize = (int)data.length;
                                                                          self.downloadFinished = YES;
+
                                                                          dispatch_semaphore_signal(self->_semaphore);
                                                                      }
                                                                  }];

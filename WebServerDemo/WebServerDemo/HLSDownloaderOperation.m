@@ -288,13 +288,15 @@ didReceiveResponse:(NSURLResponse *)response
         NSInteger expected = response.expectedContentLength > 0 ? (NSInteger)response.expectedContentLength : 0;
         self.expectedSize = expected;
         
+        NIDPRINT(@"Receiving Data begins");
+        self.videoData = [[NSMutableData alloc] initWithCapacity:expected];
+        self.response = response;
+        
         // 状态码异常， 直接报错
         for (HLSDownloaderProgressBlock progressBlock in [self callbacksForKey:kProgressCallbackKey]) {
             progressBlock(self.videoData, 0, expected, self.request.URL);
         }
-        
-        self.videoData = [[NSMutableData alloc] initWithCapacity:expected];
-        self.response = response;
+
         dispatch_async(dispatch_get_main_queue(), ^{
             [[NSNotificationCenter defaultCenter] postNotificationName:HLSDownloadReceiveResponseNotification object:self];
         });
@@ -330,6 +332,8 @@ didReceiveResponse:(NSURLResponse *)response
           dataTask:(NSURLSessionDataTask *)dataTask
     didReceiveData:(NSData *)data {
     
+    NIDASSERT(self.videoData);
+
     // 积攒数据
     // 依赖服务器端的假设: video的数据足够小，可以放在内存中
     [self.videoData appendData:data];
@@ -451,14 +455,18 @@ didReceiveResponse:(NSURLResponse *)response
     return self.options & HLSDownloaderContinueInBackground;
 }
 
-// 通知结束
+//
+// 下载任务结束
+//
 - (void)callCompletionBlocksWithError:(nullable NSError *)error {
-    [self callCompletionBlocksWithData:nil error:error finished:YES];
+    [self callCompletionBlocksWithData:self.videoData
+                                 error:error
+                              finished:YES];
 }
 
 - (void)callCompletionBlocksWithData:(nullable NSData *)videoData
-                                error:(nullable NSError *)error
-                             finished:(BOOL)finished {
+                               error:(nullable NSError *)error
+                                finished:(BOOL)finished {
     
     NSArray<id> *completionBlocks = [self callbacksForKey:kCompletedCallbackKey];
     // 通知完成调用

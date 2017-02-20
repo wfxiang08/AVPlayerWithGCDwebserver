@@ -29,6 +29,7 @@
 #error GCDWebServer requires ARC
 #endif
 
+#import "NIDebuggingTools.h"
 #import <TargetConditionals.h>
 #import <netdb.h>
 #ifdef __GCDWEBSERVER_ENABLE_TESTING__
@@ -319,7 +320,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
     
     // 从response中读取数据
     [_response performReadDataWithCompletion:^(NSData* data, NSError* error) {
-    
+        
         if (data) {
             if (data.length) {
                 // 如果从response读取了有效的数据
@@ -331,7 +332,7 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
                     // 创建一个chunk
                     NSData* chunk = [NSMutableData dataWithLength:(hexLength + 2 + data.length + 2)];
                     if (chunk == nil) {
-                        GWS_LOG_ERROR(@"Failed allocating memory for response body chunk for socket %i: %@", _socket, error);
+                        NIDPRINT(@"Connection Finished: Failed allocating memory for response body chunk for socket %i: %@", _socket, error);
                         block(NO);
                         return;
                     }
@@ -368,6 +369,8 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
           
                 }];
             } else {
+                NIDPRINT(@"Connection Finished, and writing data....");
+                // data.length == 0
                 // 如果data.length为0， 则处理 _lastChunkData
                 if (_response.usesChunkedTransferEncoding) {
                     [self _writeData:_lastChunkData withCompletionBlock:^(BOOL success) {
@@ -379,7 +382,8 @@ static inline NSUInteger _ScanHexNumber(const void* bytes, NSUInteger size) {
                 }
             }
         } else {
-            GWS_LOG_ERROR(@"Failed reading response body for socket %i: %@", _socket, error);
+            // data == NO
+            NIDPRINT(@"Connection Finished: Failed reading response body for socket %i: %@", _socket, error);
             block(NO);
         }
     }];
