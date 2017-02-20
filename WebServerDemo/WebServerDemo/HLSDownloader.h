@@ -67,8 +67,6 @@ typedef NS_ENUM(NSInteger, HLSDownloaderExecutionOrder) {
     HLSDownloaderLIFOExecutionOrder
 };
 
-extern NSString * _Nonnull const HLSDownloadStartNotification;
-extern NSString * _Nonnull const HLSDownloadStopNotification;
 
 typedef void(^HLSDownloaderProgressBlock)(NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL);
 

@@ -60,6 +60,7 @@ typedef NSMutableDictionary<NSString *, id> HLSCallbacksDictionary;
     return [self initWithRequest:nil inSession:nil options:0];
 }
 
+// 初始化: HLSDownloaderOperation
 - (nonnull instancetype)initWithRequest:(nullable NSURLRequest *)request
                               inSession:(nullable NSURLSession *)session
                                 options:(HLSDownloaderOptions)options {
@@ -83,6 +84,7 @@ typedef NSMutableDictionary<NSString *, id> HLSCallbacksDictionary;
     _barrierQueue = nil;
 }
 
+// 添加下载的回调: 进度/成功
 - (nullable id)addHandlersForProgress:(nullable HLSDownloaderProgressBlock)progressBlock
                             completed:(nullable HLSDownloaderCompletedBlock)completedBlock {
     
@@ -94,6 +96,7 @@ typedef NSMutableDictionary<NSString *, id> HLSCallbacksDictionary;
         callbacks[kCompletedCallbackKey] = [completedBlock copy];
     }
     
+    // 通过: barrierQueue 来保护关键资源
     dispatch_barrier_async(self.barrierQueue, ^{
         [self.callbackBlocks addObject:callbacks];
     });
@@ -104,16 +107,20 @@ typedef NSMutableDictionary<NSString *, id> HLSCallbacksDictionary;
     __block NSMutableArray<id> *callbacks = nil;
     
     dispatch_sync(self.barrierQueue, ^{
-        // We need to remove [NSNull null] because there might not always be a progress block for each callback
+        // valueForKey的意义
         callbacks = [[self.callbackBlocks valueForKey:key] mutableCopy];
+        // 删除[NSNull null], 不是所有的: kProgressCallbackKey 或者 kCompletedCallbackKey 都存在对应的信息
         [callbacks removeObjectIdenticalTo:[NSNull null]];
     });
-    return [callbacks copy];    // strip mutability here
+
+    return [callbacks copy];
 }
 
 - (BOOL)cancel:(nullable id)token {
+    
     __block BOOL shouldCancel = NO;
     dispatch_barrier_sync(self.barrierQueue, ^{
+        
         // 删除某个Token
         [self.callbackBlocks removeObjectIdenticalTo:token];
         
@@ -121,6 +128,8 @@ typedef NSMutableDictionary<NSString *, id> HLSCallbacksDictionary;
             shouldCancel = YES;
         }
     });
+    
+    // 如果一个operation没有了引用，可以考虑取消
     if (shouldCancel) {
         [self cancel];
     }
@@ -136,24 +145,26 @@ typedef NSMutableDictionary<NSString *, id> HLSCallbacksDictionary;
         }
 
 
-        Class UIApplicationClass = NSClassFromString(@"UIApplication");
-        BOOL hasApplication = UIApplicationClass && [UIApplicationClass respondsToSelector:@selector(sharedApplication)];
-        if (hasApplication && [self shouldContinueWhenAppEntersBackground]) {
-            __weak __typeof__ (self) wself = self;
-            UIApplication * app = [UIApplicationClass performSelector:@selector(sharedApplication)];
+        if ([self shouldContinueWhenAppEntersBackground]) {
+            
+            UIApplication * app = [UIApplication sharedApplication];
+            // 创建一个backgroundTask, 如果进入后台还继续下载
+            @weakify(self)
             self.backgroundTaskId = [app beginBackgroundTaskWithExpirationHandler:^{
-                __strong __typeof (wself) sself = wself;
+                @strongify(self)
+                if (self) {
+                    [self cancel];
 
-                if (sself) {
-                    [sself cancel];
-
-                    [app endBackgroundTask:sself.backgroundTaskId];
-                    sself.backgroundTaskId = UIBackgroundTaskInvalid;
+                    [app endBackgroundTask:self.backgroundTaskId];
+                    self.backgroundTaskId = UIBackgroundTaskInvalid;
                 }
             }];
         }
 
+        // 启动时需要有一个Session, 一般情况下都会有，大家共享网络下载的链接
         NSURLSession *session = self.unownedSession;
+        
+        // 暂不考虑
         if (!self.unownedSession) {
             NSURLSessionConfiguration *sessionConfig = [NSURLSessionConfiguration defaultSessionConfiguration];
             sessionConfig.timeoutIntervalForRequest = 15;
@@ -183,16 +194,14 @@ typedef NSMutableDictionary<NSString *, id> HLSCallbacksDictionary;
             [[NSNotificationCenter defaultCenter] postNotificationName:HLSDownloadStartNotification object:self];
         });
     } else {
-        [self callCompletionBlocksWithError:[NSError errorWithDomain:NSURLErrorDomain code:0 userInfo:@{NSLocalizedDescriptionKey : @"Connection can't be initialized"}]];
+        [self callCompletionBlocksWithError:[NSError errorWithDomain:NSURLErrorDomain
+                                                                code:0
+                                                            userInfo:@{NSLocalizedDescriptionKey : @"Connection can't be initialized"}]];
     }
 
 
-    Class UIApplicationClass = NSClassFromString(@"UIApplication");
-    if(!UIApplicationClass || ![UIApplicationClass respondsToSelector:@selector(sharedApplication)]) {
-        return;
-    }
     if (self.backgroundTaskId != UIBackgroundTaskInvalid) {
-        UIApplication * app = [UIApplication performSelector:@selector(sharedApplication)];
+        UIApplication * app = [UIApplication sharedApplication];
         [app endBackgroundTask:self.backgroundTaskId];
         self.backgroundTaskId = UIBackgroundTaskInvalid;
     }
@@ -206,8 +215,11 @@ typedef NSMutableDictionary<NSString *, id> HLSCallbacksDictionary;
 }
 
 - (void)cancelInternal {
-    if (self.isFinished) return;
-    [super cancel];
+    if (self.isFinished) {
+        return;
+    } else {
+        [super cancel];
+    }
 
     if (self.dataTask) {
         [self.dataTask cancel];
@@ -300,7 +312,8 @@ didReceiveResponse:(NSURLResponse *)response
             [[NSNotificationCenter defaultCenter] postNotificationName:HLSDownloadStopNotification object:self];
         });
         
-        [self callCompletionBlocksWithError:[NSError errorWithDomain:NSURLErrorDomain code:((NSHTTPURLResponse *)response).statusCode userInfo:nil]];
+        [self callCompletionBlocksWithError:[NSError errorWithDomain:NSURLErrorDomain
+                                                                code:((NSHTTPURLResponse *)response).statusCode userInfo:nil]];
 
         [self done];
     }
@@ -370,7 +383,8 @@ didReceiveResponse:(NSURLResponse *)response
              *    and images for which responseFromCached is YES (only the ones that cannot be cached).
              *  Note: responseFromCached is set to NO inside `willCacheResponse:`. This method doesn't get called for large images or images behind authentication
              */
-            if (self.options & HLSDownloaderIgnoreCachedResponse && responseFromCached && [[NSURLCache sharedURLCache] cachedResponseForRequest:self.request]) {
+            if (self.options & HLSDownloaderIgnoreCachedResponse && responseFromCached
+                && [[NSURLCache sharedURLCache] cachedResponseForRequest:self.request]) {
                 // hack
                 [self callCompletionBlocksWithData:nil error:nil finished:YES];
             } else if (self.videoData) {
@@ -379,14 +393,18 @@ didReceiveResponse:(NSURLResponse *)response
             } else {
                 [self callCompletionBlocksWithError:[NSError errorWithDomain:HLSErrorDomain
                                                                         code:0
-                                                                    userInfo:@{NSLocalizedDescriptionKey : @"Image data is nil"}]];
+                                                                    userInfo:@{NSLocalizedDescriptionKey : @"Video data is nil"}]];
             }
         }
     }
     [self done];
 }
 
-- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential))completionHandler {
+- (void)    URLSession:(NSURLSession *)session
+                  task:(NSURLSessionTask *)task
+   didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
+     completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition,
+                                 NSURLCredential *credential))completionHandler {
     
     NSURLSessionAuthChallengeDisposition disposition = NSURLSessionAuthChallengePerformDefaultHandling;
     __block NSURLCredential *credential = nil;
@@ -423,6 +441,7 @@ didReceiveResponse:(NSURLResponse *)response
     return self.options & HLSDownloaderContinueInBackground;
 }
 
+// 通知结束
 - (void)callCompletionBlocksWithError:(nullable NSError *)error {
     [self callCompletionBlocksWithData:nil error:error finished:YES];
 }
@@ -430,7 +449,9 @@ didReceiveResponse:(NSURLResponse *)response
 - (void)callCompletionBlocksWithData:(nullable NSData *)videoData
                                 error:(nullable NSError *)error
                              finished:(BOOL)finished {
+    
     NSArray<id> *completionBlocks = [self callbacksForKey:kCompletedCallbackKey];
+    // 通知完成调用
     dispatch_main_async_safe(^{
         for (HLSDownloaderCompletedBlock completedBlock in completionBlocks) {
             completedBlock(videoData, error, finished);

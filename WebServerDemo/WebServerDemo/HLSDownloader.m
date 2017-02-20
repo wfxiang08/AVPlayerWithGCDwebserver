@@ -32,31 +32,6 @@
 
 @implementation HLSDownloader
 
-+ (void)initialize {
-    // Bind SDNetworkActivityIndicator if available (download it here: http://github.com/rs/SDNetworkActivityIndicator )
-    // To use it, just add #import "SDNetworkActivityIndicator.h" in addition to the HLS import
-    if (NSClassFromString(@"SDNetworkActivityIndicator")) {
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-        id activityIndicator = [NSClassFromString(@"SDNetworkActivityIndicator")
-                                performSelector:NSSelectorFromString(@"sharedActivityIndicator")];
-#pragma clang diagnostic pop
-
-        // Remove observer in case it was previously added.
-        [[NSNotificationCenter defaultCenter] removeObserver:activityIndicator
-                                                        name:HLSDownloadStartNotification object:nil];
-        [[NSNotificationCenter defaultCenter] removeObserver:activityIndicator
-                                                        name:HLSDownloadStopNotification object:nil];
-
-        [[NSNotificationCenter defaultCenter] addObserver:activityIndicator
-                                                 selector:NSSelectorFromString(@"startActivity")
-                                                     name:HLSDownloadStartNotification object:nil];
-        [[NSNotificationCenter defaultCenter] addObserver:activityIndicator
-                                                 selector:NSSelectorFromString(@"stopActivity")
-                                                     name:HLSDownloadStopNotification object:nil];
-    }
-}
 
 + (nonnull instancetype)sharedDownloader {
     static dispatch_once_t once;
