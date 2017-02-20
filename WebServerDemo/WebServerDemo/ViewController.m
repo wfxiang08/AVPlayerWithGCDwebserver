@@ -28,8 +28,8 @@
 
 
 - (void) playVideo {
-    // NSString *realUrlStr = @"http://192.168.31.187:8000/02/hls-low/playlist.m3u8";
-    NSString *realUrlStr = @"https://d2odow79s717pv.cloudfront.net/production/transcoding/recordings/6485234595397632/hlsmaster.m3u8";
+     NSString *realUrlStr = @"http://192.168.31.187:8000/02/hls-low/playlist.m3u8";
+//    NSString *realUrlStr = @"https://d2odow79s717pv.cloudfront.net/production/transcoding/recordings/6485234595397632/hlsmaster.m3u8";
     
     
     

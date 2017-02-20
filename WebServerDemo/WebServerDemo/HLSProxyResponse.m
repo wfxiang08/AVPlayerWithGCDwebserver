@@ -18,6 +18,7 @@
 @property (nonatomic, copy) NSString* targetUrl;
 @property (nonatomic, strong) NSString* cacheKey;
 @property (nonatomic, assign) BOOL done;
+@property (nonatomic, assign) BOOL downloadFinished;
 @property (nonatomic, assign) int cacheTsNum;
 @property (nonatomic, assign) int readBufferSize;
 @property (nonatomic, assign) int receivedSize;
@@ -53,6 +54,7 @@
     if (self  = [super init]) {
         self.contentType = [HLSProxyResponse getContentType: targetUrl]; // 这个很重要
         self.done = NO;
+        self.downloadFinished = NO;
         self.targetUrl = targetUrl;
         self.cacheTsNum = tsNum;
         
@@ -70,7 +72,7 @@
 
 - (void) detectCache {
     _data = [[HSLVideoCache sharedHlsCache] videoForKey: self.cacheKey];
-    if (_data.length > 0) {
+    if (NO) { // _data.length > 0) {
         self.contentLength = _data.length;
 #if defined(DEBUG) || defined(NI_DEBUG)
         // 可以用于设置断点，进行Debug
@@ -90,22 +92,26 @@
         _downloadToken = [[HLSDownloader sharedDownloader] downloadWithURL:url
                                                                    options:HLSDownloaderHighPriority
                                                                   progress:^(NSData* videoData,NSInteger receivedSize, NSInteger expectedSize, NSURL * _Nullable targetURL) {
+                                                                      
+                                                                      NIDPRINT(@"Download progress: %d", (int)receivedSize);
+                                                                      
                                                                       @strongify(self)
-                                                                      if (self) {
-                                                                          dispatch_semaphore_signal(self->_semaphore);
-                                                                      }
                                                                       self.videoData = videoData;
                                                                       self.receivedSize = (int)receivedSize;
+                                                                      
+                                                                      // m3u8文件需要等待，最终一口气传递过去
+                                                                      if (self && [self.targetUrl hasSuffix:@".ts"]) {
+                                                                          dispatch_semaphore_signal(self->_semaphore);
+                                                                      }
                                                                   }
                                                                  completed:^(NSData * _Nullable data, NSError * _Nullable error, BOOL finished) {
                                                                      @strongify(self)
                                                                      if (self) {
-                                                                         dispatch_semaphore_signal(self->_semaphore);
-                                                                         self.done = YES;
+                                                                         NIDPRINT(@"Download finished");
                                                                          
                                                                          if (data.length > 0 && error != nil) {
                                                                              
-                                                                             if (![self.targetUrl hasSuffix:@".ts"]) {
+                                                                             if ([self.targetUrl hasSuffix:@".ts"]) {
                                                                                  data = [self processM3U8:data baseUrl:url maxProxyLine:self.cacheTsNum];
                                                                                  
                                                                                  // 用于debug断点
@@ -116,6 +122,11 @@
                                                                              
                                                                              [[HSLVideoCache sharedHlsCache] storeVideoData: data forKey:self.cacheKey completion:nil];
                                                                          }
+                                                                         
+                                                                         self.videoData = data;
+                                                                         self.receivedSize = (int)data.length;
+                                                                         self.downloadFinished = YES;
+                                                                         dispatch_semaphore_signal(self->_semaphore);
                                                                      }
                                                                  }];
     }
@@ -160,18 +171,28 @@
     NIDASSERT(_data.length == 0);
     
     if (_done) {
+        NIDPRINT(@"Download Finished for %@", self.targetUrl);
         completionBlockInner([NSData data], nil);
         return;
     }
     
     
     // 不断等待，直到有足够的数据
-    while (self.readBufferSize >= self.receivedSize && !_data) {
+    while (self.readBufferSize >= self.receivedSize && !self.downloadFinished) {
         dispatch_semaphore_wait(_semaphore, 100 * NSEC_PER_MSEC);
     }
+    NIDPRINT(@"New Data to process or finished");
     int videoLength = self.receivedSize;
-    completionBlockInner([self.videoData subdataWithRange:NSMakeRange(self.readBufferSize, videoLength - self.readBufferSize)], nil);
+    int start = self.readBufferSize;
     self.readBufferSize = videoLength;
+    
+    if (self.downloadFinished) {
+        _done = YES;
+    }
+    completionBlockInner([self.videoData subdataWithRange:NSMakeRange(start, videoLength - start)], nil);
+
+    
+
 
     
     

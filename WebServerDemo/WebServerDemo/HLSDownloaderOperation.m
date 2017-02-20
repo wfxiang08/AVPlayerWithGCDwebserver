@@ -397,6 +397,7 @@ didReceiveResponse:(NSURLResponse *)response
             } else if (self.videoData) {
                 // self.videoData
                 // TODO:
+                [self callCompletionBlocksWithData:self.videoData error:nil finished:YES];
             } else {
                 // 没有数据
                 [self callCompletionBlocksWithError:[NSError errorWithDomain:HLSErrorDomain
